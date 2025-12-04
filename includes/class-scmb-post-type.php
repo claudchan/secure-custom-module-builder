@@ -121,6 +121,15 @@ class SCMB_Post_Type {
                     'default_value' => 1,
                     'ui' => 1,
                 ],
+                [
+                    'key' => 'field_module_compact_code',
+                    'label' => __('Compact Code', 'scmb'),
+                    'name' => 'module_compact_code',
+                    'type' => 'true_false',
+                    'message' => __('Minify HTML, CSS, and JavaScript for smaller file size', 'scmb'),
+                    'default_value' => 0,
+                    'ui' => 1,
+                ],
             ],
             'location' => [
                 [
@@ -133,6 +142,7 @@ class SCMB_Post_Type {
             ],
             'position' => 'normal',
             'style' => 'default',
+            'menu_order' => 1,
         ]);
         
         // Module Template
@@ -186,6 +196,7 @@ $(document).ready(function() {
             ],
             'position' => 'normal',
             'style' => 'default',
+            'menu_order' => 0,
         ]);
         
         // Module Fields
@@ -296,6 +307,7 @@ $(document).ready(function() {
             ],
             'position' => 'normal',
             'style' => 'default',
+            'menu_order' => 2,
         ]);
     }
 }

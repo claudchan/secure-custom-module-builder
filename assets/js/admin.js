@@ -4,237 +4,194 @@
 
 (function($) {
     'use strict';
-
-    // CodeMirror instances
-    let htmlEditor, cssEditor, jsEditor;
-
+    
+    console.log('SCMB Admin JS Loaded');
+    
+    // Wait for ACF to be ready
+    if (typeof acf !== 'undefined') {
+        console.log('ACF detected, waiting for ready event');
+        acf.addAction('ready', function() {
+            console.log('ACF ready event triggered');
+            initCodeMirror();
+        });
+        
+        // Also init when new fields are appended (for repeaters)
+        acf.addAction('append', function() {
+            console.log('ACF append event triggered');
+            initCodeMirror();
+        });
+    } else {
+        // Fallback if ACF is not available
+        console.log('ACF not detected, using jQuery ready');
+        $(document).ready(function() {
+            initCodeMirror();
+        });
+    }
+    
     /**
-     * Initialize on document ready
+     * Initialize CodeMirror for template fields
      */
-    $(document).ready(function() {
-        initCodeEditors();
-        initPreview();
-        enhanceFieldBuilder();
-    });
-
-    /**
-     * Initialize CodeMirror editors for HTML, CSS, JS
-     */
-    function initCodeEditors() {
+    function initCodeMirror() {
+        console.log('initCodeMirror function called');
+        
+        // Only on module edit screen
+        if (!$('body').hasClass('post-type-scmb_module')) {
+            console.log('Not on module edit screen, skipping');
+            return;
+        }
+        
+        console.log('On module edit screen');
+        
+        // Check if CodeMirror is available
+        if (typeof CodeMirror === 'undefined') {
+            console.error('SCMB: CodeMirror not loaded');
+            return;
+        }
+        
+        console.log('CodeMirror found:', typeof CodeMirror);
+        
         // HTML Editor
-        const htmlTextarea = $('#smart-cf-module_html');
-        if (htmlTextarea.length) {
-            htmlEditor = wp.codeEditor.initialize(htmlTextarea[0], {
-                codemirror: {
+        var htmlField = $('[data-name="module_html"] textarea');
+        console.log('HTML field found:', htmlField.length);
+        
+        if (htmlField.length && !htmlField.data('codemirror-initialized')) {
+            console.log('Initializing HTML editor');
+            try {
+                var htmlEditor = CodeMirror.fromTextArea(htmlField[0], {
                     mode: 'htmlmixed',
                     lineNumbers: true,
-                    lineWrapping: true,
                     theme: 'default',
-                    autoCloseTags: true,
-                    matchBrackets: true,
+                    lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
-                }
-            });
-
-            // Add label
-            htmlTextarea.before('<label class="scmb-code-label"><strong>HTML Template</strong> - Use {{field_name}} for variables</label>');
+                    indentWithTabs: false,
+                    matchBrackets: true,
+                    autoCloseTags: true,
+                    extraKeys: {
+                        "Ctrl-Space": "autocomplete",
+                        "Ctrl-J": "toMatchingTag"
+                    }
+                });
+                
+                // Sync CodeMirror with textarea
+                htmlEditor.on('change', function(cm) {
+                    htmlField.val(cm.getValue());
+                });
+                
+                htmlField.data('codemirror-initialized', true);
+                htmlField.data('codemirror-instance', htmlEditor);
+                console.log('HTML editor initialized successfully');
+            } catch (e) {
+                console.error('Error initializing HTML editor:', e);
+            }
         }
-
+        
         // CSS Editor
-        const cssTextarea = $('#smart-cf-module_css');
-        if (cssTextarea.length) {
-            cssEditor = wp.codeEditor.initialize(cssTextarea[0], {
-                codemirror: {
+        var cssField = $('[data-name="module_css"] textarea');
+        console.log('CSS field found:', cssField.length);
+        
+        if (cssField.length && !cssField.data('codemirror-initialized')) {
+            console.log('Initializing CSS editor');
+            try {
+                var cssEditor = CodeMirror.fromTextArea(cssField[0], {
                     mode: 'css',
                     lineNumbers: true,
-                    lineWrapping: true,
                     theme: 'default',
-                    autoCloseBrackets: true,
-                    matchBrackets: true,
+                    lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
-                }
-            });
-
-            cssTextarea.before('<label class="scmb-code-label"><strong>CSS Styles</strong></label>');
+                    indentWithTabs: false,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    extraKeys: {
+                        "Ctrl-Space": "autocomplete"
+                    }
+                });
+                
+                cssEditor.on('change', function(cm) {
+                    cssField.val(cm.getValue());
+                });
+                
+                cssField.data('codemirror-initialized', true);
+                cssField.data('codemirror-instance', cssEditor);
+                console.log('CSS editor initialized successfully');
+            } catch (e) {
+                console.error('Error initializing CSS editor:', e);
+            }
         }
-
+        
         // JavaScript Editor
-        const jsTextarea = $('#smart-cf-module_js');
-        if (jsTextarea.length) {
-            jsEditor = wp.codeEditor.initialize(jsTextarea[0], {
-                codemirror: {
+        var jsField = $('[data-name="module_js"] textarea');
+        console.log('JS field found:', jsField.length);
+        
+        if (jsField.length && !jsField.data('codemirror-initialized')) {
+            console.log('Initializing JS editor');
+            try {
+                var jsEditor = CodeMirror.fromTextArea(jsField[0], {
                     mode: 'javascript',
                     lineNumbers: true,
-                    lineWrapping: true,
                     theme: 'default',
-                    autoCloseBrackets: true,
-                    matchBrackets: true,
+                    lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
-                }
-            });
-
-            jsTextarea.before('<label class="scmb-code-label"><strong>JavaScript</strong></label>');
-        }
-    }
-
-    /**
-     * Initialize preview functionality
-     */
-    function initPreview() {
-        $('#scmb-preview-btn').on('click', function(e) {
-            e.preventDefault();
-            
-            const $output = $('#scmb-preview-output');
-            const $btn = $(this);
-            
-            // Get template content
-            let htmlTemplate = '';
-            if (htmlEditor && htmlEditor.codemirror) {
-                htmlTemplate = htmlEditor.codemirror.getValue();
-            }
-            
-            let cssContent = '';
-            if (cssEditor && cssEditor.codemirror) {
-                cssContent = cssEditor.codemirror.getValue();
-            }
-            
-            // Get fields
-            const fields = getModuleFields();
-            
-            // Replace template variables with sample data
-            let renderedHtml = htmlTemplate;
-            fields.forEach(field => {
-                const placeholder = getSampleDataForField(field);
-                const regex = new RegExp('{{\\s*' + field.name + '\\s*}}', 'g');
-                renderedHtml = renderedHtml.replace(regex, placeholder);
-            });
-            
-            // Build preview
-            let preview = '<div class="scmb-preview-wrapper">';
-            
-            if (cssContent) {
-                preview += '<style>' + cssContent + '</style>';
-            }
-            
-            preview += renderedHtml;
-            preview += '</div>';
-            
-            // Show preview
-            $output.html(preview).slideDown();
-            
-            // Scroll to preview
-            $('html, body').animate({
-                scrollTop: $output.offset().top - 100
-            }, 500);
-        });
-    }
-
-    /**
-     * Get module fields from form
-     */
-    function getModuleFields() {
-        const fields = [];
-        
-        $('.smart-cf-meta-box-repeat-tables .smart-cf-meta-box-table').each(function() {
-            const $table = $(this);
-            const fieldName = $table.find('input[name*="[field_name]"]').val();
-            const fieldLabel = $table.find('input[name*="[field_label]"]').val();
-            const fieldType = $table.find('select[name*="[field_type]"]').val();
-            
-            if (fieldName) {
-                fields.push({
-                    name: fieldName,
-                    label: fieldLabel || fieldName,
-                    type: fieldType || 'text'
+                    indentWithTabs: false,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    extraKeys: {
+                        "Ctrl-Space": "autocomplete"
+                    }
                 });
+                
+                jsEditor.on('change', function(cm) {
+                    jsField.val(cm.getValue());
+                });
+                
+                jsField.data('codemirror-initialized', true);
+                jsField.data('codemirror-instance', jsEditor);
+                console.log('JS editor initialized successfully');
+            } catch (e) {
+                console.error('Error initializing JS editor:', e);
             }
-        });
-        
-        return fields;
-    }
-
-    /**
-     * Get sample data for field preview
-     */
-    function getSampleDataForField(field) {
-        const samples = {
-            'text': 'Sample Text',
-            'textarea': 'Sample paragraph text with multiple lines.\nThis is line two.\nThis is line three.',
-            'wysiwyg': '<p>Sample <strong>rich text</strong> content with <em>formatting</em>.</p>',
-            'image': '<img src="https://via.placeholder.com/400x300" alt="Sample Image" />',
-            'select': 'Option 1',
-            'checkbox': 'checked'
-        };
-        
-        return samples[field.type] || field.label;
-    }
-
-    /**
-     * Enhance field builder UI
-     */
-    function enhanceFieldBuilder() {
-        // Add helpful tooltips
-        $('input[name*="[field_name]"]').attr('placeholder', 'e.g., title, content, image_url');
-        $('input[name*="[field_label]"]').attr('placeholder', 'e.g., Title, Content, Image');
-        
-        // Show template variable when field name is entered
-        $(document).on('input', 'input[name*="[field_name]"]', function() {
-            const $input = $(this);
-            const fieldName = $input.val();
-            const $wrapper = $input.closest('tr');
-            
-            // Remove existing helper
-            $wrapper.find('.scmb-field-helper').remove();
-            
-            if (fieldName) {
-                const helper = $('<div class="scmb-field-helper" style="margin-top: 5px; padding: 8px; background: #f0f6fc; border-left: 3px solid #2271b1; font-size: 12px;">' +
-                    '<strong>Template variable:</strong> <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">{{' + fieldName + '}}</code>' +
-                    '</div>');
-                $input.closest('td').append(helper);
-            }
-        });
-        
-        // Trigger on page load for existing fields
-        $('input[name*="[field_name]"]').trigger('input');
-    }
-
-    /**
-     * Auto-save warning
-     */
-    let contentChanged = false;
-    
-    // Track changes in editors
-    if (htmlEditor && htmlEditor.codemirror) {
-        htmlEditor.codemirror.on('change', function() {
-            contentChanged = true;
-        });
-    }
-    
-    if (cssEditor && cssEditor.codemirror) {
-        cssEditor.codemirror.on('change', function() {
-            contentChanged = true;
-        });
-    }
-    
-    if (jsEditor && jsEditor.codemirror) {
-        jsEditor.codemirror.on('change', function() {
-            contentChanged = true;
-        });
-    }
-    
-    // Warn before leaving
-    $(window).on('beforeunload', function() {
-        if (contentChanged) {
-            return 'You have unsaved changes. Are you sure you want to leave?';
         }
+        
+        // Refresh editors when ACF tabs are switched
+        $('.acf-tab-button').on('click', function() {
+            setTimeout(function() {
+                if (htmlField.data('codemirror-instance')) {
+                    htmlField.data('codemirror-instance').refresh();
+                }
+                if (cssField.data('codemirror-instance')) {
+                    cssField.data('codemirror-instance').refresh();
+                }
+                if (jsField.data('codemirror-instance')) {
+                    jsField.data('codemirror-instance').refresh();
+                }
+            }, 100);
+        });
+    }
+    
+    /**
+     * Add helpful tooltips and enhancements
+     */
+    $(document).ready(function() {
+        if (!$('body').hasClass('post-type-scmb_module')) {
+            return;
+        }
+        
+        // Add template variable helper
+        addTemplateHelper();
     });
     
-    // Reset flag on save
-    $('#post').on('submit', function() {
-        contentChanged = false;
-    });
-
+    /**
+     * Add template variable helper
+     */
+    function addTemplateHelper() {
+        var htmlField = $('[data-name="module_html"]');
+        if (htmlField.length) {
+            var helpText = $('<div class="scmb-help-text"></div>')
+                .html('Use <code>{{field_name}}</code> for simple fields or <code>{{#field_name}} ... {{/field_name}}</code> for repeaters');
+            htmlField.find('.acf-label').append(helpText);
+        }
+    }
+    
 })(jQuery);

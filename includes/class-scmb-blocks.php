@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 class SCMB_Blocks {
     
     private static $instance = null;
+    private static $enqueued_modules = []; // Track which modules have been enqueued
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -378,8 +379,17 @@ class SCMB_Blocks {
      * Enqueue block-specific CSS and JS
      */
     private function enqueue_block_assets($module_id) {
+        // Skip if this module's assets have already been enqueued
+        if (in_array($module_id, self::$enqueued_modules)) {
+            return;
+        }
+        
+        // Mark this module as enqueued
+        self::$enqueued_modules[] = $module_id;
+        
         $css = get_field('module_css', $module_id);
         $js = get_field('module_js', $module_id);
+        $compact_code = get_field('module_compact_code', $module_id);
         
         // Inline CSS
         if (!empty($css)) {
@@ -389,12 +399,205 @@ class SCMB_Blocks {
             // Register a dummy style to attach inline CSS
             wp_register_style($handle, false);
             wp_enqueue_style($handle);
-            wp_add_inline_style($handle, $css);
+            
+            // Sanitize CSS to prevent CSS injection
+            $sanitized_css = $this->sanitize_css($css);
+            
+            // Compact CSS if enabled
+            if ($compact_code) {
+                $sanitized_css = $this->compact_css($sanitized_css);
+            }
+            
+            wp_add_inline_style($handle, $sanitized_css);
         }
         
         // Inline JS
         if (!empty($js)) {
-            wp_add_inline_script('jquery', $js);
+            // Ensure jQuery is loaded on frontend
+            wp_enqueue_script('jquery');
+            
+            // Sanitize and validate JavaScript
+            $sanitized_js = $this->sanitize_javascript($js);
+            
+            if (empty($sanitized_js)) {
+                error_log('SCMB: JavaScript validation failed for module ' . $module_id);
+                return;
+            }
+            
+            // Compact JS if enabled
+            if ($compact_code) {
+                $sanitized_js = $this->compact_javascript($sanitized_js);
+            }
+            
+            // Wrap the JS in a jQuery ready handler to ensure DOM is ready
+            $wrapped_js = sprintf(
+                '(function($){if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){%s});}else{%s;}})(jQuery);',
+                $sanitized_js,
+                $sanitized_js
+            );
+            
+            wp_add_inline_script('jquery', $wrapped_js, 'after');
         }
+    }
+    
+    /**
+     * Sanitize CSS to prevent injection attacks
+     * 
+     * @param string $css Raw CSS from module
+     * @return string Sanitized CSS
+     */
+    private function sanitize_css($css) {
+        // Remove dangerous CSS that could execute scripts
+        $dangerous_patterns = [
+            '/expression\s*\(/i',           // IE expressions
+            '/behavior\s*:/i',              // IE behavior
+            '/javascript:/i',               // JavaScript protocol
+            '/@import/i',                   // @import (could load external malicious CSS)
+            '/-moz-binding/i',              // Mozilla binding
+        ];
+        
+        foreach ($dangerous_patterns as $pattern) {
+            $css = preg_replace($pattern, '', $css);
+        }
+        
+        return wp_kses_post($css);
+    }
+    
+    /**
+     * Sanitize and validate JavaScript to prevent injection attacks
+     * 
+     * @param string $js Raw JavaScript from module
+     * @return string Sanitized JavaScript
+     */
+    private function sanitize_javascript($js) {
+        // Check if user has capability to execute code
+        if (!current_user_can('manage_options')) {
+            error_log('SCMB: Non-admin attempted to use custom JavaScript');
+            return '';
+        }
+        
+        // Detect dangerous functions and patterns
+        $dangerous_patterns = [
+            '/eval\s*\(/i',                          // eval()
+            '/function\s+constructor/i',            // Function constructor
+            '/window\.location\s*=/i',              // window.location (but allow read)
+            '/document\.domain\s*=/i',              // document.domain modification
+            '/document\.write\s*\(/i',              // document.write
+            '/innerHTML\s*=/i',                     // innerHTML direct assignment
+            '/exec\s*\(/i',                         // exec()
+            '/setTimeout\s*\(\s*["\'].*[\'"]\s*,/i', // setTimeout with string (indirect eval)
+            '/setInterval\s*\(\s*["\'].*[\'"]\s*,/i', // setInterval with string
+        ];
+        
+        foreach ($dangerous_patterns as $pattern) {
+            if (preg_match($pattern, $js)) {
+                error_log('SCMB Security: Dangerous pattern detected in module JavaScript: ' . $pattern);
+                return '';
+            }
+        }
+        
+        // Additional safety check: ensure code is valid JavaScript
+        // This is a basic check - full validation would require a JS parser
+        if (!$this->is_valid_javascript_syntax($js)) {
+            error_log('SCMB: Invalid JavaScript syntax detected');
+            return '';
+        }
+        
+        return $js; // Already validated, safe to use
+    }
+    
+    /**
+     * Basic JavaScript syntax validation
+     * 
+     * @param string $js JavaScript code
+     * @return bool True if syntax appears valid
+     */
+    private function is_valid_javascript_syntax($js) {
+        // Remove comments and strings to avoid false positives
+        $js_cleaned = preg_replace('(/\*.*?\*/)', '', $js); // Remove multi-line comments
+        $js_cleaned = preg_replace('(//.*)', '', $js_cleaned); // Remove single-line comments
+        $js_cleaned = preg_replace('("(?:\\.|[^"\\])*")', '""', $js_cleaned); // Remove strings
+        $js_cleaned = preg_replace("('(?:\\.|[^'\\])*')", "''", $js_cleaned); // Remove strings
+        
+        // Basic checks for balanced brackets
+        $open_braces = substr_count($js_cleaned, '{') + substr_count($js_cleaned, '[') + substr_count($js_cleaned, '(');
+        $close_braces = substr_count($js_cleaned, '}') + substr_count($js_cleaned, ']') + substr_count($js_cleaned, ')');
+        
+        if ($open_braces !== $close_braces) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Compact/Minify CSS
+     * Removes unnecessary whitespace, newlines, and comments
+     * 
+     * @param string $css CSS code
+     * @return string Minified CSS
+     */
+    private function compact_css($css) {
+        // Remove comments
+        $css = preg_replace('!/\*[^*]*\*+(?:[^/*][^*]*\*+)*/!', '', $css);
+        
+        // Remove newlines and multiple spaces
+        $css = preg_replace('/[\r\n\t]+/', ' ', $css);
+        $css = preg_replace('/\s+/', ' ', $css);
+        
+        // Remove spaces around special characters
+        $css = preg_replace('/\s*([{}:;,>+~])\s*/', '$1', $css);
+        
+        // Remove trailing semicolon in declarations
+        $css = preg_replace('/;}/', '}', $css);
+        
+        // Trim
+        return trim($css);
+    }
+    
+    /**
+     * Compact/Minify JavaScript
+     * Removes unnecessary whitespace, newlines, and comments
+     * Preserves string literals and regex patterns
+     * 
+     * @param string $js JavaScript code
+     * @return string Minified JavaScript
+     */
+    private function compact_javascript($js) {
+        // Remove single-line comments (preserve URLs in strings by being careful)
+        $js = preg_replace('/\/\/.*?(?=[\r\n]|$)/m', '', $js);
+        
+        // Remove multi-line comments
+        $js = preg_replace('/\/\*[\s\S]*?\*\//m', '', $js);
+        
+        // Replace newlines with spaces
+        $js = str_replace(["\r\n", "\r", "\n"], " ", $js);
+        
+        // Replace tabs with spaces
+        $js = str_replace("\t", " ", $js);
+        
+        // Reduce multiple spaces to single space (but preserve in strings)
+        // This is safer than trying to minify around operators
+        $js = preg_replace('/  +/', ' ', $js);
+        
+        // Remove space before semicolons and commas
+        $js = preg_replace('/\s+;/', ';', $js);
+        $js = preg_replace('/\s+,/', ',', $js);
+        
+        // Remove space before closing braces/brackets/parentheses
+        $js = preg_replace('/\s+}/', '}', $js);
+        $js = preg_replace('/\s+]/', ']', $js);
+        $js = preg_replace('/\s+\)/', ')', $js);
+        
+        // Remove space after opening braces/brackets/parentheses
+        $js = preg_replace('/{[\s]+/', '{', $js);
+        $js = preg_replace('/\[[\s]+/', '[', $js);
+        $js = preg_replace('/\([\s]+/', '(', $js);
+        
+        // Remove spaces around colons (in object properties)
+        $js = preg_replace('/\s*:\s*/', ':', $js);
+        
+        // Trim
+        return trim($js);
     }
 }

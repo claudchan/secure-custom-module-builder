@@ -1,0 +1,243 @@
+/* SCMB Admin Styles */
+
+/* Two-Column Layout Container */
+.post-type-scmb_module .edit-form {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+}
+
+/* Left Column - Full Height */
+.post-type-scmb_module #post-body-content {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure template fields take full height */
+.post-type-scmb_module #poststuff {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+}
+
+/* Module Template Field Group - Full Height Left */
+#acf-group_scmb_template {
+    grid-column: 1;
+    order: 0;
+}
+
+#acf-group_scmb_template .acf-box {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 200px);
+}
+
+#acf-group_scmb_template .acf-box .acf-fields {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* Template Fields - Full Height */
+#acf-group_scmb_template .acf-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+
+#acf-group_scmb_template .acf-field .acf-input {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#acf-group_scmb_template textarea {
+    flex: 1;
+    min-height: 200px;
+}
+
+/* Right Column - Configuration and Fields */
+#acf-group_scmb_config,
+#acf-group_scmb_fields {
+    grid-column: 2;
+}
+
+#acf-group_scmb_config {
+    order: 1;
+}
+
+#acf-group_scmb_fields {
+    order: 2;
+}
+
+/* Module Builder Header */
+.scmb-admin-header {
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 15px 20px;
+    margin: -10px -20px 20px;
+}
+
+.scmb-admin-header h1 {
+    margin: 0;
+    font-size: 23px;
+    font-weight: 400;
+    color: #1d2327;
+}
+
+/* Code Editor Improvements */
+.acf-field[data-name="module_html"] .acf-input,
+.acf-field[data-name="module_css"] .acf-input,
+.acf-field[data-name="module_js"] .acf-input {
+    position: relative;
+}
+
+.acf-field[data-name="module_html"] textarea,
+.acf-field[data-name="module_css"] textarea,
+.acf-field[data-name="module_js"] textarea {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+}
+
+/* CodeMirror Wrapper */
+.CodeMirror {
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    height: 100% !important;
+    min-height: 300px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+}
+
+.CodeMirror-scroll {
+    min-height: 300px;
+}
+
+/* Code Editor Labels */
+.scmb-code-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.scmb-code-label .dashicons {
+    color: #2271b1;
+}
+
+/* Field Groups Styling */
+.acf-fields.-border {
+    border: 1px solid #c3c4c7;
+    background: #fff;
+}
+
+.acf-postbox {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Module Fields Repeater */
+.acf-field[data-name="module_fields"] .acf-repeater {
+    border: 1px solid #c3c4c7;
+}
+
+.acf-field[data-name="module_fields"] .acf-repeater .acf-row {
+    background: #f9f9f9;
+}
+
+.acf-field[data-name="module_fields"] .acf-repeater .acf-row:nth-child(even) {
+    background: #fff;
+}
+
+/* Save/Publish Box Enhancement */
+#publishing-action {
+    padding-top: 10px;
+}
+
+/* Help Text */
+.scmb-help-text {
+    display: inline-block;
+    margin-top: 5px;
+    color: #646970;
+    font-size: 12px;
+}
+
+.scmb-help-text code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Module Status Toggle */
+.acf-field[data-name="module_status"] .acf-switch {
+    border-color: #2271b1;
+}
+
+.acf-field[data-name="module_status"] .acf-switch.-on {
+    background: #2271b1;
+    border-color: #2271b1;
+}
+
+/* Full-width Template Fields */
+.acf-field[data-name="module_html"],
+.acf-field[data-name="module_css"],
+.acf-field[data-name="module_js"] {
+    clear: both;
+}
+
+/* Module Preview Box */
+.scmb-preview-box {
+    background: #f9f9f9;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.scmb-preview-box h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Responsive - Stack on mobile */
+@media (max-width: 1200px) {
+    .post-type-scmb_module .edit-form,
+    .post-type-scmb_module #poststuff {
+        grid-template-columns: 1fr;
+    }
+    
+    #acf-group_scmb_template {
+        grid-column: 1;
+    }
+    
+    #acf-group_scmb_config,
+    #acf-group_scmb_fields {
+        grid-column: 1;
+    }
+    
+    #acf-group_scmb_template .acf-box {
+        min-height: auto;
+    }
+    
+    .CodeMirror {
+        height: auto !important;
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 782px) {
+    .CodeMirror {
+        font-size: 14px;
+        min-height: 300px;
+    }
+}
