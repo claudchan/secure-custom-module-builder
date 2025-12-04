@@ -1,6 +1,6 @@
 # Secure Custom Module Builder (SCMB)
 
-A brief, one-sentence description of what your plugin does.
+Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
 
 ## Description
 
