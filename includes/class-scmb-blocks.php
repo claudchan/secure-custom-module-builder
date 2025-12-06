@@ -220,8 +220,9 @@ class SCMB_Blocks {
      * @return void
      */
     private function render_block( $block, $module_id, $is_preview, $post_id ) {
-        // Get module template.
+        // Get module template and CSS.
         $html_template = get_field( 'module_html', $module_id );
+        $css = get_field( 'module_css', $module_id );
         $module_fields = get_field( 'module_fields', $module_id ) ?: [];
 
         if ( empty( $html_template ) ) {
@@ -273,9 +274,17 @@ class SCMB_Blocks {
         // Replace template variables.
         $output = $this->replace_template_variables( $html_template, $field_values );
 
-        // Wrap in preview div if in editor.
+        // Wrap in preview div if in editor and output CSS inline for preview.
         if ( $is_preview ) {
             echo '<div class="scmb-block-preview">';
+            
+            // Output CSS inline for ACF editor preview
+            if ( ! empty( $css ) ) {
+                $sanitized_css = $this->sanitize_css( $css );
+                echo '<style>';
+                echo wp_kses_post( $sanitized_css );
+                echo '</style>';
+            }
         }
 
         // Output HTML - safe because all values are pre-escaped.
