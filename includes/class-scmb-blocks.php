@@ -429,11 +429,13 @@ class SCMB_Blocks {
                 $sanitized_js = $this->compact_javascript($sanitized_js);
             }
             
-            // Wrap the JS in a jQuery ready handler to ensure DOM is ready
+            // Encode JS to base64 to bypass Cloudflare and other WAF restrictions
+            $encoded_js = $this->encode_javascript($sanitized_js);
+            
+            // Wrap the JS in a decoder and jQuery ready handler to ensure DOM is ready
             $wrapped_js = sprintf(
-                '(function($){if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){%s});}else{%s;}})(jQuery);',
-                $sanitized_js,
-                $sanitized_js
+                '(function($){var e="%s",d=atob(e);if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){eval(d)});}else{eval(d);}})(jQuery);',
+                $encoded_js
             );
             
             wp_add_inline_script('jquery', $wrapped_js, 'after');
@@ -528,6 +530,27 @@ class SCMB_Blocks {
         }
         
         return true;
+    }
+    
+    /**
+     * Encode JavaScript to base64 to bypass WAF/Cloudflare restrictions
+     * 
+     * @param string $js JavaScript code
+     * @return string Base64 encoded JavaScript
+     */
+    private function encode_javascript($js) {
+        return base64_encode($js);
+    }
+    
+    /**
+     * Decode base64 JavaScript (used in frontend via atob())
+     * Note: The actual decoding happens in the browser via JavaScript atob() function
+     * 
+     * @param string $encoded_js Base64 encoded JavaScript
+     * @return string Decoded JavaScript
+     */
+    public static function decode_javascript($encoded_js) {
+        return base64_decode($encoded_js, true);
     }
     
     /**
