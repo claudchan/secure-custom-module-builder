@@ -42,8 +42,8 @@ class SCMB_Admin {
         );
         
         wp_enqueue_style(
-            'scmb-codemirror-theme-monokai',
-            SCMB_PLUGIN_URL . 'assets/lib/codemirror/theme/monokai.min.css',
+            'scmb-codemirror-theme-nord',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/theme/nord.min.css',
             [],
             SCMB_VERSION
         );

@@ -60,7 +60,7 @@
                 var htmlEditor = CodeMirror.fromTextArea(htmlField[0], {
                     mode: 'htmlmixed',
                     lineNumbers: true,
-                    theme: 'monokai',
+                    theme: 'nord',
                     lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
@@ -96,7 +96,7 @@
                 var cssEditor = CodeMirror.fromTextArea(cssField[0], {
                     mode: 'css',
                     lineNumbers: true,
-                    theme: 'default',
+                    theme: 'nord',
                     lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
@@ -130,7 +130,7 @@
                 var jsEditor = CodeMirror.fromTextArea(jsField[0], {
                     mode: 'javascript',
                     lineNumbers: true,
-                    theme: 'default',
+                    theme: 'nord',
                     lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
