@@ -422,14 +422,10 @@ class SCMB_Blocks {
         
         // Inline JS
         if (!empty($js)) {
-            // Ensure jQuery is loaded on frontend
-            wp_enqueue_script('jquery');
-            
             // Sanitize and validate JavaScript
             $sanitized_js = $this->sanitize_javascript($js);
             
             if (empty($sanitized_js)) {
-                error_log('SCMB: JavaScript validation failed for module ' . $module_id);
                 return;
             }
             
@@ -438,16 +434,22 @@ class SCMB_Blocks {
                 $sanitized_js = $this->compact_javascript($sanitized_js);
             }
             
-            // Encode JS to base64 to bypass Cloudflare and other WAF restrictions
-            $encoded_js = $this->encode_javascript($sanitized_js);
+            // Remove DOMContentLoaded listener from user code since we'll handle it
+            $cleaned_js = $this->remove_dom_ready_wrapper($sanitized_js);
             
-            // Wrap the JS in a decoder and jQuery ready handler to ensure DOM is ready
+            // Wrap the JS to execute immediately without jQuery dependency
+            // This ensures it runs regardless of jQuery availability
             $wrapped_js = sprintf(
-                '(function($){var e="%s",d=atob(e);if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){eval(d)});}else{eval(d);}})(jQuery);',
-                $encoded_js
+                '(function(){if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){%s});}else{%s;}})();',
+                $cleaned_js,
+                $cleaned_js
             );
             
-            wp_add_inline_script('jquery', $wrapped_js, 'after');
+            // Output script tag directly in footer to ensure it executes
+            // Use wp_footer hook to add script at the very end of the page
+            add_action('wp_footer', function() use ($wrapped_js) {
+                echo '<script type="text/javascript">' . "\n" . $wrapped_js . "\n" . '</script>' . "\n";
+            }, 999);
         }
     }
     
@@ -585,6 +587,32 @@ class SCMB_Blocks {
         
         // Trim
         return trim($css);
+    }
+    
+    /**
+     * Remove DOMContentLoaded wrapper from user's JavaScript code
+     * This prevents double-wrapping when we add our own DOMContentLoaded handler
+     * 
+     * @param string $js JavaScript code
+     * @return string JavaScript without DOMContentLoaded wrapper
+     */
+    private function remove_dom_ready_wrapper($js) {
+        // Pattern to match: document.addEventListener('DOMContentLoaded', function() { ... });
+        $patterns = [
+            '/document\s*\.\s*addEventListener\s*\(\s*[\'"]DOMContentLoaded[\'"]\s*,\s*function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
+            '/\$\s*\(\s*document\s*\)\s*\.\s*ready\s*\(\s*function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
+            '/\$\(function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
+        ];
+        
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $js, $matches)) {
+                // Return just the content inside the wrapper
+                return trim($matches[1]);
+            }
+        }
+        
+        // If no wrapper found, return original JS
+        return $js;
     }
     
     /**
