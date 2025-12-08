@@ -41,10 +41,75 @@ class SCMB_Admin {
             SCMB_VERSION
         );
         
+        wp_enqueue_style(
+            'scmb-codemirror-theme-monokai',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/theme/monokai.min.css',
+            [],
+            SCMB_VERSION
+        );
+        
         wp_enqueue_script(
             'scmb-codemirror',
             SCMB_PLUGIN_URL . 'assets/lib/codemirror/codemirror.min.js',
             [],
+            SCMB_VERSION,
+            false
+        );
+
+        // Enqueue the necessary Mode and Addons JS files
+        wp_enqueue_script(
+            'scmb-codemirror-mode-xml',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/mode/xml/xml.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-mode-javascript',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/mode/javascript/javascript.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-mode-css',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/mode/css/css.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-mode-htmlmixed',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/mode/htmlmixed/htmlmixed.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-addon-edit-matchbrackets',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/addon/edit/matchbrackets.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-addon-edit-closetag',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/addon/edit/closetag.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-addon-hint-show-hint',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/addon/hint/show-hint.min.js',
+            ['scmb-codemirror'],
+            SCMB_VERSION,
+            false
+        );
+        wp_enqueue_script(
+            'scmb-codemirror-addon-hint-html-hint',
+            SCMB_PLUGIN_URL . 'assets/lib/codemirror/addon/hint/html-hint.min.js',
+            ['scmb-codemirror'],
             SCMB_VERSION,
             false
         );

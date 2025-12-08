@@ -155,7 +155,7 @@ class SCMB_Post_Type {
                     'label' => __('HTML Template', 'scmb'),
                     'name' => 'module_html',
                     'type' => 'textarea',
-                    'instructions' => __('Use {{field_name}} for field values. Example: <h2>{{title}}</h2>', 'scmb'),
+                    'instructions' => __('<span class="scmb-help-text">Use <code>{{field_name}}</code> for field values. Example: <code>&lt;h2&gt;{{title}}&lt;/h2&gt;</code><br>Use <code>{{#field_name}}...{{/field_name}}</code> for repeaters.</span>', 'scmb'),
                     'rows' => 15,
                     'placeholder' => '<div class="custom-block">
     <h2>{{title}}</h2>

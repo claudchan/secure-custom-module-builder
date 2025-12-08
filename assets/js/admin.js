@@ -60,7 +60,7 @@
                 var htmlEditor = CodeMirror.fromTextArea(htmlField[0], {
                     mode: 'htmlmixed',
                     lineNumbers: true,
-                    theme: 'default',
+                    theme: 'monokai',
                     lineWrapping: true,
                     indentUnit: 2,
                     tabSize: 2,
@@ -179,7 +179,7 @@
         }
         
         // Add template variable helper
-        addTemplateHelper();
+        // addTemplateHelper();
     });
     
     /**

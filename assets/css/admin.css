@@ -3,7 +3,7 @@
 /* Two-Column Layout Container */
 .post-type-scmb_module .edit-form {
     display: grid;
-    grid-template-columns: 1fr 350px;
+    grid-template-columns: 1fr;
     gap: 20px;
 }
 
@@ -16,9 +16,21 @@
 
 /* Ensure template fields take full height */
 .post-type-scmb_module #poststuff {
+    --side-postbox-container-width: calc(50vw - (160px + 20px));
     display: grid;
-    grid-template-columns: 1fr 350px;
+    grid-template-columns: 1fr;
     gap: 20px;
+}
+
+.post-type-scmb_module #poststuff #post-body.columns-2 {
+    margin-right: var(--side-postbox-container-width);
+}
+.post-type-scmb_module #poststuff #post-body.columns-2 #postbox-container-1 {
+    margin-right: calc(var(--side-postbox-container-width) * -1);
+    width: calc(var(--side-postbox-container-width) - 20px);
+}
+.post-type-scmb_module #poststuff #post-body.columns-2 #postbox-container-1 > * {
+    width: 100%;
 }
 
 /* Module Template Field Group - Full Height Left */
