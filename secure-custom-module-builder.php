@@ -97,6 +97,7 @@ class Secure_Custom_Module_Builder {
      * Include required files
      */
     private function includes() {
+        require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-github-updater.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-post-type.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-admin.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-blocks.php';
@@ -154,6 +155,16 @@ function scmb() {
 
 // Start the plugin
 scmb();
+
+new SCMB_GitHub_Updater(
+    array(
+        'plugin_slug'    => 'secure-custom-module-builder',
+        'plugin_file'    => SCMB_PLUGIN_FILE,
+        'plugin_version' => SCMB_VERSION,
+        'repo_owner'     => 'claudchan',
+        'repo_name'      => 'secure-custom-module-builder',
+    )
+);
 
 /**
  * Enqueue scripts for the plugins page
