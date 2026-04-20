@@ -239,40 +239,11 @@ class SCMB_Blocks {
             return;
         }
 
-        // Collect field values with proper escaping based on field type.
-        $field_values = [];
-        foreach ( $module_fields as $field ) {
-            if ( ! empty( $field['field_name'] ) ) {
-                // Get field value - ACF automatically knows the context.
-                $value = get_field( $field['field_name'] );
-                $value = ( false !== $value ) ? $value : '';
+        // Collect field values with escaping tailored to each field type.
+        $field_values = $this->build_template_context( $module_fields );
 
-                // Apply appropriate escaping based on field type.
-                switch ( $field['field_type'] ) {
-                    case 'wysiwyg':
-                        // Allow HTML tags for rich text - use wp_kses_post for security.
-                        $field_values[ $field['field_name'] ] = wp_kses_post( $value );
-                        break;
-                    case 'url':
-                        $field_values[ $field['field_name'] ] = esc_url( $value );
-                        break;
-                    case 'image':
-                        // For images, store ID and let template handle retrieval.
-                        $field_values[ $field['field_name'] ] = ! empty( $value ) ? (int) $value : '';
-                        break;
-                    case 'repeater':
-                        // For repeaters, keep as array - escaping happens in process_repeater().
-                        $field_values[ $field['field_name'] ] = is_array( $value ) ? $value : [];
-                        break;
-                    default:
-                        // Escape plain text values to prevent XSS.
-                        $field_values[ $field['field_name'] ] = esc_html( $value );
-                }
-            }
-        }
-
-        // Replace template variables.
-        $output = $this->replace_template_variables( $html_template, $field_values );
+        // Render the template using the prepared field context.
+        $output = $this->render_template( $html_template, $field_values );
 
         // Wrap in preview div if in editor and output CSS inline for preview.
         if ( $is_preview ) {
@@ -294,7 +265,472 @@ class SCMB_Blocks {
             echo '</div>';
         }
     }
-    
+
+    /**
+     * Build the rendering context for a module template.
+     *
+     * @param array $module_fields Module field definitions.
+     * @return array
+     */
+    private function build_template_context( $module_fields ) {
+        $context = [];
+
+        foreach ( $module_fields as $field ) {
+            if ( empty( $field['field_name'] ) || empty( $field['field_type'] ) ) {
+                continue;
+            }
+
+            $value = get_field( $field['field_name'] );
+            $value = ( false !== $value ) ? $value : '';
+
+            $context[ $field['field_name'] ] = $this->prepare_field_value( $field, $value );
+        }
+
+        return $context;
+    }
+
+    /**
+     * Prepare a single field value for template rendering.
+     *
+     * @param array $field Field definition.
+     * @param mixed $value Raw field value.
+     * @return mixed
+     */
+    private function prepare_field_value( $field, $value ) {
+        switch ( $field['field_type'] ) {
+            case 'wysiwyg':
+                return wp_kses_post( $value );
+
+            case 'url':
+                return esc_url( $value );
+
+            case 'image':
+                return ! empty( $value ) ? (int) $value : '';
+
+            case 'true_false':
+                return ! empty( $value );
+
+            case 'repeater':
+                return $this->prepare_repeater_rows( $value, $field );
+
+            default:
+                return is_scalar( $value ) ? esc_html( (string) $value ) : '';
+        }
+    }
+
+    /**
+     * Prepare repeater rows for template rendering.
+     *
+     * @param mixed $rows  Raw repeater rows.
+     * @param array $field Repeater field definition.
+     * @return array
+     */
+    private function prepare_repeater_rows( $rows, $field ) {
+        if ( ! is_array( $rows ) ) {
+            return [];
+        }
+
+        $prepared_rows   = [];
+        $sub_field_types = $this->get_repeater_sub_field_types( $field );
+
+        foreach ( $rows as $row ) {
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $prepared_row = [];
+
+            foreach ( $row as $sub_field_name => $sub_field_value ) {
+                $sub_field_type = isset( $sub_field_types[ $sub_field_name ] ) ? $sub_field_types[ $sub_field_name ] : 'text';
+                $prepared_row[ $sub_field_name ] = $this->prepare_sub_field_value( $sub_field_type, $sub_field_value );
+            }
+
+            $prepared_rows[] = $prepared_row;
+        }
+
+        return $prepared_rows;
+    }
+
+    /**
+     * Get the configured types for repeater sub-fields.
+     *
+     * @param array $field Repeater field definition.
+     * @return array
+     */
+    private function get_repeater_sub_field_types( $field ) {
+        $sub_field_types = [];
+
+        if ( empty( $field['field_sub_fields'] ) ) {
+            return $sub_field_types;
+        }
+
+        $sub_fields_raw = explode( "\n", $field['field_sub_fields'] );
+
+        foreach ( $sub_fields_raw as $sub_field_line ) {
+            $sub_field_line = trim( $sub_field_line );
+
+            if ( empty( $sub_field_line ) ) {
+                continue;
+            }
+
+            $parts          = array_map( 'trim', explode( '|', $sub_field_line ) );
+            $sub_field_name = isset( $parts[0] ) ? $parts[0] : '';
+            $sub_field_type = isset( $parts[2] ) ? $parts[2] : 'text';
+
+            if ( empty( $sub_field_name ) ) {
+                continue;
+            }
+
+            $sub_field_types[ $sub_field_name ] = $sub_field_type;
+        }
+
+        return $sub_field_types;
+    }
+
+    /**
+     * Prepare a repeater sub-field value for template rendering.
+     *
+     * @param string $field_type Sub-field type.
+     * @param mixed  $value      Raw sub-field value.
+     * @return mixed
+     */
+    private function prepare_sub_field_value( $field_type, $value ) {
+        switch ( $field_type ) {
+            case 'wysiwyg':
+                return wp_kses_post( $value );
+
+            case 'url':
+                return esc_url( $value );
+
+            case 'image':
+                return ! empty( $value ) ? (int) $value : '';
+
+            case 'true_false':
+                return ! empty( $value );
+
+            default:
+                return is_scalar( $value ) ? esc_html( (string) $value ) : '';
+        }
+    }
+
+    /**
+     * Render a template string using the supplied context.
+     *
+     * Supported syntax:
+     * - {{field_name}}
+     * - {{#field_name}} ... {{/field_name}}
+     * - {{#if field_name}} ... {{else}} ... {{/if}}
+     * - {{#if title && content}} ... {{/if}}
+     * - {{#if title || content}} ... {{/if}}
+     * - {{#if !title}} ... {{/if}}
+     *
+     * @param string $template Template markup.
+     * @param array  $context  Rendering context.
+     * @return string
+     */
+    private function render_template( $template, $context ) {
+        if ( ! is_string( $template ) || empty( $template ) ) {
+            return '';
+        }
+
+        $template = $this->render_template_sections( $template, $context );
+        $template = $this->replace_template_variables( $template, $context );
+
+        // Remove any unsupported or unresolved tags from the final output.
+        return preg_replace( '/\{\{[^}]+\}\}/', '', $template );
+    }
+
+    /**
+     * Render template control structures such as sections and conditionals.
+     *
+     * @param string $template Template markup.
+     * @param array  $context  Rendering context.
+     * @return string
+     */
+    private function render_template_sections( $template, $context ) {
+        $opening_pattern = '/\{\{\s*#(?:(if)\s+([^}]+?)|([a-zA-Z_][a-zA-Z0-9_]*))\s*\}\}/';
+
+        while ( preg_match( $opening_pattern, $template, $matches, PREG_OFFSET_CAPTURE ) ) {
+            $full_match     = $matches[0][0];
+            $opening_offset = $matches[0][1];
+            $opening_length = strlen( $full_match );
+            $section_type   = ! empty( $matches[1][0] ) ? 'if' : 'repeater';
+            $section_name   = 'if' === $section_type ? trim( $matches[2][0] ) : $matches[3][0];
+            $section_end    = $opening_offset + $opening_length;
+            $boundaries     = $this->find_template_section_boundaries( $template, $section_end, $section_type, $section_name );
+
+            if ( false === $boundaries ) {
+                break;
+            }
+
+            if ( 'if' === $section_type ) {
+                $replacement = $this->render_if_section( $template, $context, $section_name, $section_end, $boundaries );
+            } else {
+                $replacement = $this->render_repeater_section( $template, $context, $section_name, $section_end, $boundaries );
+            }
+
+            $template = substr_replace(
+                $template,
+                $replacement,
+                $opening_offset,
+                $boundaries['close_end'] - $opening_offset
+            );
+        }
+
+        return $template;
+    }
+
+    /**
+     * Find the closing boundary for a template section.
+     *
+     * @param string $template     Template markup.
+     * @param int    $offset       Search offset immediately after the opening tag.
+     * @param string $section_type Section type: if or repeater.
+     * @param string $section_name Section field name.
+     * @return array|false
+     */
+    private function find_template_section_boundaries( $template, $offset, $section_type, $section_name ) {
+        $pattern       = '/\{\{\s*(#if\s+[^}]+|#[a-zA-Z_][a-zA-Z0-9_]*|\/if|\/[a-zA-Z_][a-zA-Z0-9_]*|else)\s*\}\}/';
+        $search_offset = $offset;
+        $depth         = 1;
+        $else_tag      = null;
+
+        while ( preg_match( $pattern, $template, $matches, PREG_OFFSET_CAPTURE, $search_offset ) ) {
+            $tag      = $matches[1][0];
+            $tag_text = $matches[0][0];
+            $tag_pos  = $matches[0][1];
+            $tag_end  = $tag_pos + strlen( $tag_text );
+
+            if ( 'if' === $section_type ) {
+                if ( 0 === strpos( $tag, '#if ' ) ) {
+                    ++$depth;
+                } elseif ( '/if' === $tag ) {
+                    --$depth;
+
+                    if ( 0 === $depth ) {
+                        return [
+                            'close_start' => $tag_pos,
+                            'close_end'   => $tag_end,
+                            'else_tag'    => $else_tag,
+                        ];
+                    }
+                } elseif ( 'else' === $tag && 1 === $depth && null === $else_tag ) {
+                    $else_tag = [
+                        'start' => $tag_pos,
+                        'end'   => $tag_end,
+                    ];
+                }
+            } else {
+                if ( '#' . $section_name === $tag ) {
+                    ++$depth;
+                } elseif ( '/' . $section_name === $tag ) {
+                    --$depth;
+
+                    if ( 0 === $depth ) {
+                        return [
+                            'close_start' => $tag_pos,
+                            'close_end'   => $tag_end,
+                            'else_tag'    => null,
+                        ];
+                    }
+                }
+            }
+
+            $search_offset = $tag_end;
+        }
+
+        return false;
+    }
+
+    /**
+     * Render an if/else section.
+     *
+     * @param string $template     Template markup.
+     * @param array  $context      Rendering context.
+     * @param string $section_name Conditional expression.
+     * @param int    $content_start Start of section content.
+     * @param array  $boundaries   Section boundary data.
+     * @return string
+     */
+    private function render_if_section( $template, $context, $section_name, $content_start, $boundaries ) {
+        $else_tag       = $boundaries['else_tag'];
+        $true_content   = substr( $template, $content_start, $boundaries['close_start'] - $content_start );
+        $false_content  = '';
+        $condition_value = $this->evaluate_condition_expression( $section_name, $context );
+
+        if ( is_array( $else_tag ) ) {
+            $true_content  = substr( $template, $content_start, $else_tag['start'] - $content_start );
+            $false_content = substr( $template, $else_tag['end'], $boundaries['close_start'] - $else_tag['end'] );
+        }
+
+        if ( $this->is_template_value_truthy( $condition_value ) ) {
+            return $this->render_template( $true_content, $context );
+        }
+
+        return $this->render_template( $false_content, $context );
+    }
+
+    /**
+     * Render a repeater section.
+     *
+     * @param string $template      Template markup.
+     * @param array  $context       Rendering context.
+     * @param string $section_name  Repeater field name.
+     * @param int    $content_start Start of section content.
+     * @param array  $boundaries    Section boundary data.
+     * @return string
+     */
+    private function render_repeater_section( $template, $context, $section_name, $content_start, $boundaries ) {
+        $section_value   = $this->get_template_context_value( $context, $section_name );
+        $section_content = substr( $template, $content_start, $boundaries['close_start'] - $content_start );
+        $output          = '';
+
+        if ( ! is_array( $section_value ) ) {
+            return '';
+        }
+
+        foreach ( $section_value as $row ) {
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $row_context = $this->build_child_template_context( $context, $row );
+            $output     .= $this->render_template( $section_content, $row_context );
+        }
+
+        return $output;
+    }
+
+    /**
+     * Merge a child row context onto the current context.
+     *
+     * @param array $context Current rendering context.
+     * @param array $row     Child row values.
+     * @return array
+     */
+    private function build_child_template_context( $context, $row ) {
+        return array_merge( $context, $row );
+    }
+
+    /**
+     * Get a value from the template context.
+     *
+     * @param array  $context    Rendering context.
+     * @param string $field_name Context key.
+     * @return mixed
+     */
+    private function get_template_context_value( $context, $field_name ) {
+        return isset( $context[ $field_name ] ) ? $context[ $field_name ] : null;
+    }
+
+    /**
+     * Determine whether a template value should be treated as truthy.
+     *
+     * @param mixed $value Template value.
+     * @return bool
+     */
+    private function is_template_value_truthy( $value ) {
+        if ( is_array( $value ) ) {
+            return ! empty( $value );
+        }
+
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+
+        if ( is_numeric( $value ) ) {
+            return 0.0 !== (float) $value;
+        }
+
+        return '' !== trim( (string) $value );
+    }
+
+    /**
+     * Evaluate a supported conditional expression.
+     *
+     * Supported operators:
+     * - &&
+     * - ||
+     * - !
+     *
+     * Expressions are intentionally simple and field-based so the template
+     * language remains predictable and safe to extend.
+     *
+     * @param string $expression Conditional expression.
+     * @param array  $context    Rendering context.
+     * @return bool
+     */
+    private function evaluate_condition_expression( $expression, $context ) {
+        $expression = trim( (string) $expression );
+
+        if ( '' === $expression ) {
+            return false;
+        }
+
+        $or_parts = preg_split( '/\s*\|\|\s*/', $expression );
+
+        if ( false === $or_parts || empty( $or_parts ) ) {
+            return false;
+        }
+
+        foreach ( $or_parts as $or_part ) {
+            if ( $this->evaluate_and_expression( $or_part, $context ) ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Evaluate an AND expression segment.
+     *
+     * @param string $expression AND expression segment.
+     * @param array  $context    Rendering context.
+     * @return bool
+     */
+    private function evaluate_and_expression( $expression, $context ) {
+        $and_parts = preg_split( '/\s*&&\s*/', trim( $expression ) );
+
+        if ( false === $and_parts || empty( $and_parts ) ) {
+            return false;
+        }
+
+        foreach ( $and_parts as $and_part ) {
+            if ( ! $this->evaluate_condition_operand( $and_part, $context ) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Evaluate a single conditional operand.
+     *
+     * @param string $operand Conditional operand.
+     * @param array  $context Rendering context.
+     * @return bool
+     */
+    private function evaluate_condition_operand( $operand, $context ) {
+        $operand  = trim( $operand );
+        $negated  = false;
+
+        while ( 0 === strpos( $operand, '!' ) ) {
+            $negated = ! $negated;
+            $operand = ltrim( substr( $operand, 1 ) );
+        }
+
+        if ( ! preg_match( '/^[a-zA-Z_][a-zA-Z0-9_]*$/', $operand ) ) {
+            return false;
+        }
+
+        $value  = $this->get_template_context_value( $context, $operand );
+        $result = $this->is_template_value_truthy( $value );
+
+        return $negated ? ! $result : $result;
+    }
+
     /**
      * Replace {{field_name}} with field values.
      *
@@ -307,81 +743,38 @@ class SCMB_Blocks {
      * @return string The template with variables replaced and unreplaced variables removed.
      */
     private function replace_template_variables( $template, $values ) {
-        foreach ( $values as $key => $value ) {
-            // Validate key format to prevent injection.
-            if ( ! preg_match( '/^[a-zA-Z_][a-zA-Z0-9_]*$/', $key ) ) {
-                continue;
-            }
-
-            // Handle repeater fields - check if value is array of items
-            if (is_array($value) && !empty($value) && isset($value[0]) && is_array($value[0])) {
-                // This is a repeater field
-                $repeater_output = $this->process_repeater($template, $key, $value);
-                if ($repeater_output !== false) {
-                    $template = $repeater_output;
-                    continue;
-                }
-            }
-
-            // Handle other array values
-            if ( is_array( $value ) ) {
-                $value = isset( $value['value'] ) ? $value['value'] : '';
-            } elseif ( null === $value || false === $value ) {
-                $value = '';
-            }
-
-            // Replace {{field_name}} with value (already escaped in render_block).
-            $template = str_replace( '{{' . $key . '}}', $value, $template );
-        }
-
-        // Remove any unreplaced variables to prevent information leakage.
-        $template = preg_replace( '/\{\{[^}]+\}\}/', '', $template );
-
-        return $template;
+        return preg_replace_callback(
+            '/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/',
+            function( $matches ) use ( $values ) {
+                $value = $this->get_template_context_value( $values, $matches[1] );
+                return $this->stringify_template_value( $value );
+            },
+            $template
+        );
     }
 
     /**
-     * Process repeater field loops in template
+     * Convert a template value into a string for interpolation.
      *
-     * @param string $template The HTML template with repeater loop tags.
-     * @param string $field_name The repeater field name.
-     * @param array  $rows Array of repeater row data.
-     *
-     * @return string|false The template with repeater loop processed, or false if no loop found.
+     * @param mixed $value Template value.
+     * @return string
      */
-    private function process_repeater( $template, $field_name, $rows ) {
-        // Look for repeater loop: {{#field_name}} ... {{/field_name}}
-        $pattern = '/\{\{#' . preg_quote( $field_name ) . '\}\}(.*?)\{\{\/' . preg_quote( $field_name ) . '\}\}/s';
-
-        if ( ! preg_match( $pattern, $template, $matches ) ) {
-            return false;
+    private function stringify_template_value( $value ) {
+        if ( is_array( $value ) ) {
+            return isset( $value['value'] ) && is_scalar( $value['value'] )
+                ? (string) $value['value']
+                : '';
         }
 
-        $loop_template = $matches[1];
-        $output        = '';
-
-        // Loop through each row
-        foreach ( $rows as $row ) {
-            $row_output = $loop_template;
-
-            // Replace sub-field variables in this row
-            foreach ( $row as $sub_field_name => $sub_field_value ) {
-                // Don't escape - values should already be escaped in render_block()
-                // Only convert arrays to strings
-                if ( is_array( $sub_field_value ) ) {
-                    $sub_field_value = '';
-                }
-
-                $row_output = str_replace( '{{' . $sub_field_name . '}}', $sub_field_value, $row_output );
-            }
-
-            $output .= $row_output;
+        if ( is_bool( $value ) ) {
+            return $value ? '1' : '';
         }
 
-        // Replace the entire loop block with the output
-        $template = preg_replace( $pattern, $output, $template );
+        if ( null === $value || false === $value ) {
+            return '';
+        }
 
-        return $template;
+        return is_scalar( $value ) ? (string) $value : '';
     }
     
     /**
