@@ -59,6 +59,13 @@ class SCMB_GitHub_Updater {
     private $cache_key;
 
     /**
+     * Plugin homepage URL.
+     *
+     * @var string
+     */
+    private $plugin_url;
+
+    /**
      * Constructor.
      *
      * @param array $args Updater arguments.
@@ -75,8 +82,14 @@ class SCMB_GitHub_Updater {
             $this->repo_name
         );
         $this->cache_key       = 'scmb_github_release_' . md5( $this->api_url );
+        $this->plugin_url      = sprintf(
+            'https://github.com/%1$s/%2$s',
+            $this->repo_owner,
+            $this->repo_name
+        );
 
-        add_filter( 'site_transient_update_plugins', array( $this, 'check_for_update' ) );
+        add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_for_update' ) );
+        add_filter( 'plugins_api', array( $this, 'plugin_information' ), 10, 3 );
         add_filter( 'upgrader_post_install', array( $this, 'rename_github_folder' ), 10, 3 );
     }
 
@@ -110,6 +123,38 @@ class SCMB_GitHub_Updater {
         );
 
         return $transient;
+    }
+
+    /**
+     * Provide plugin information for the WordPress update modal.
+     *
+     * @param false|object|array $result The result object or array. Default false.
+     * @param string             $action The type of information being requested.
+     * @param object             $args   Plugin API arguments.
+     * @return false|object|array
+     */
+    public function plugin_information( $result, $action, $args ) {
+        if ( 'plugin_information' !== $action || empty( $args->slug ) || $this->plugin_slug !== $args->slug ) {
+            return $result;
+        }
+
+        $release = $this->get_latest_release();
+
+        return (object) array(
+            'name'          => 'Secure Custom Module Builder (SCMB)',
+            'slug'          => $this->plugin_slug,
+            'version'       => ! empty( $release['version'] ) ? $release['version'] : $this->plugin_version,
+            'author'        => '<a href="https://github.com/' . esc_attr( $this->repo_owner ) . '">' . esc_html( $this->repo_owner ) . '</a>',
+            'homepage'      => $this->plugin_url,
+            'requires'      => '6.0',
+            'requires_php'  => '7.4',
+            'download_link' => ! empty( $release['package'] ) ? $release['package'] : '',
+            'last_updated'  => ! empty( $release['published_at'] ) ? $release['published_at'] : '',
+            'sections'      => array(
+                'description' => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'Latest release information is hosted on GitHub.', 'scmb' ),
+                'changelog'   => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'No changelog details were provided for the latest release.', 'scmb' ),
+            ),
+        );
     }
 
     /**
@@ -204,9 +249,11 @@ class SCMB_GitHub_Updater {
         }
 
         $release = array(
-            'version' => ltrim( $body['tag_name'], 'vV' ),
-            'package' => $body['zipball_url'],
-            'url'     => ! empty( $body['html_url'] ) ? $body['html_url'] : $body['zipball_url'],
+            'version'      => ltrim( $body['tag_name'], 'vV' ),
+            'package'      => $body['zipball_url'],
+            'url'          => ! empty( $body['html_url'] ) ? $body['html_url'] : $body['zipball_url'],
+            'body'         => ! empty( $body['body'] ) ? $body['body'] : '',
+            'published_at' => ! empty( $body['published_at'] ) ? gmdate( 'Y-m-d H:i:s', strtotime( $body['published_at'] ) ) : '',
         );
 
         set_transient( $this->cache_key, $release, 12 * HOUR_IN_SECONDS );

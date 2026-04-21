@@ -2,6 +2,7 @@
 /**
  * Plugin Name: Secure Custom Module Builder (SCMB)
  * Plugin URI: https://github.com/claudchan/secure-custom-module-builder
+ * Update URI: https://github.com/claudchan/secure-custom-module-builder
  * Description: Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
  * Version: 1.0.0
  * Author: Claud Chan
