@@ -997,22 +997,135 @@ class SCMB_Blocks {
      * @return string JavaScript without DOMContentLoaded wrapper
      */
     private function remove_dom_ready_wrapper($js) {
-        // Pattern to match: document.addEventListener('DOMContentLoaded', function() { ... });
+        // Match common DOM-ready wrappers, including arrow functions. The wrapper
+        // body is extracted with brace matching so trailing "});" tokens are not
+        // left behind in the generated frontend script.
         $patterns = [
-            '/document\s*\.\s*addEventListener\s*\(\s*[\'"]DOMContentLoaded[\'"]\s*,\s*function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
-            '/\$\s*\(\s*document\s*\)\s*\.\s*ready\s*\(\s*function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
-            '/\$\(function\s*\(\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?/i',
+            '/document\s*\.\s*addEventListener\s*\(\s*[\'"]DOMContentLoaded[\'"]\s*,\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>)\s*\{/i',
+            '/\$\s*\(\s*document\s*\)\s*\.\s*ready\s*\(\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>)\s*\{/i',
+            '/\$\s*\(\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>)\s*\{/i',
         ];
         
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $js, $matches)) {
-                // Return just the content inside the wrapper
-                return trim($matches[1]);
+            if (preg_match($pattern, $js, $matches, PREG_OFFSET_CAPTURE)) {
+                $match_start = $matches[0][1];
+                $match_text  = $matches[0][0];
+                $open_brace  = $match_start + strlen($match_text) - 1;
+                $close_brace = $this->find_matching_javascript_brace($js, $open_brace);
+
+                if (false === $close_brace) {
+                    continue;
+                }
+
+                $statement_end = $this->find_javascript_statement_end($js, $close_brace + 1);
+                $before        = substr($js, 0, $match_start);
+                $body          = substr($js, $open_brace + 1, $close_brace - $open_brace - 1);
+                $after         = substr($js, $statement_end);
+
+                return trim($before . "\n" . $body . "\n" . $after);
             }
         }
         
         // If no wrapper found, return original JS
         return $js;
+    }
+
+    /**
+     * Find the closing brace for a JavaScript block.
+     *
+     * @param string $js JavaScript code.
+     * @param int    $open_brace Position of the opening brace.
+     * @return int|false Closing brace position, or false when not found.
+     */
+    private function find_matching_javascript_brace($js, $open_brace) {
+        $length = strlen($js);
+        $depth  = 0;
+        $quote  = null;
+        $line_comment = false;
+        $block_comment = false;
+
+        for ($i = $open_brace; $i < $length; $i++) {
+            $char = $js[$i];
+            $next = ($i + 1 < $length) ? $js[$i + 1] : '';
+
+            if ($line_comment) {
+                if ("\n" === $char || "\r" === $char) {
+                    $line_comment = false;
+                }
+                continue;
+            }
+
+            if ($block_comment) {
+                if ('*' === $char && '/' === $next) {
+                    $block_comment = false;
+                    $i++;
+                }
+                continue;
+            }
+
+            if (null !== $quote) {
+                if ('\\' === $char) {
+                    $i++;
+                    continue;
+                }
+
+                if ($quote === $char) {
+                    $quote = null;
+                }
+                continue;
+            }
+
+            if ('/' === $char && '/' === $next) {
+                $line_comment = true;
+                $i++;
+                continue;
+            }
+
+            if ('/' === $char && '*' === $next) {
+                $block_comment = true;
+                $i++;
+                continue;
+            }
+
+            if ('"' === $char || "'" === $char || '`' === $char) {
+                $quote = $char;
+                continue;
+            }
+
+            if ('{' === $char) {
+                $depth++;
+                continue;
+            }
+
+            if ('}' === $char) {
+                $depth--;
+
+                if (0 === $depth) {
+                    return $i;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Find the end of the JavaScript wrapper call after a callback body.
+     *
+     * @param string $js JavaScript code.
+     * @param int    $start Position immediately after the callback closing brace.
+     * @return int Position immediately after the wrapper statement.
+     */
+    private function find_javascript_statement_end($js, $start) {
+        $length = strlen($js);
+
+        for ($i = $start; $i < $length; $i++) {
+            if (';' === $js[$i]) {
+                return $i + 1;
+            }
+        }
+
+        return $length;
     }
     
     /**

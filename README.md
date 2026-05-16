@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.3
+* Fixed DOMContentLoaded wrapper stripping for arrow-function module scripts to prevent stray closing tokens in generated frontend JavaScript.
+
 ### 1.0.2
 * Fixed dependency detection so SCMB remains active with ACF-compatible Secure Custom Fields installs.
 
