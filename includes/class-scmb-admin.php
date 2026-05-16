@@ -32,6 +32,9 @@ class SCMB_Admin {
         if ($post_type !== 'scmb_module') {
             return;
         }
+
+        $admin_css_version = filemtime( SCMB_PLUGIN_DIR . 'assets/css/admin.css' );
+        $admin_js_version  = filemtime( SCMB_PLUGIN_DIR . 'assets/js/admin.js' );
         
         // Enqueue our local CodeMirror library
         wp_enqueue_style(
@@ -119,7 +122,7 @@ class SCMB_Admin {
             'scmb-admin',
             SCMB_PLUGIN_URL . 'assets/css/admin.css',
             ['scmb-codemirror'],
-            SCMB_VERSION
+            $admin_css_version
         );
         
         // Enqueue our custom admin JS
@@ -127,7 +130,7 @@ class SCMB_Admin {
             'scmb-admin',
             SCMB_PLUGIN_URL . 'assets/js/admin.js',
             ['jquery', 'scmb-codemirror'],
-            SCMB_VERSION,
+            $admin_js_version,
             true
         );
     }

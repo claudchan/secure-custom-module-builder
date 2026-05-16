@@ -166,7 +166,7 @@ class SCMB_Post_Type {
                     'name' => 'module_html',
                     'type' => 'textarea',
                     'instructions' => __(
-                        '<span class="scmb-help-text">Use <code>{{field_name}}</code> for field values. Example: <code>&lt;h2&gt;{{title}}&lt;/h2&gt;</code><br>Use <code>{{#field_name}}...{{/field_name}}</code> for repeaters.<br>Use <code>{{#if field_name}}...{{else}}...{{/if}}</code> for conditional output.<br>Simple expressions are supported: <code>{{#if title && content}}</code>, <code>{{#if title || content}}</code>, <code>{{#if !title}}</code>.</span>',
+                        '<span class="scmb-help-text">Use <code>{{field_name}}</code> for field values. Example: <code>&lt;h2&gt;{{title}}&lt;/h2&gt;</code><br>Use <code>{{#field_name}}...{{/field_name}}</code> for repeaters. Inside repeaters you can use <code>{{#if __first}}active{{/if}}</code>, <code>{{__index}}</code>, <code>{{__position}}</code>, and <code>{{#if __last}}...{{/if}}</code>.<br>Use <code>{{#if field_name}}...{{else}}...{{/if}}</code> for conditional output.<br>Simple expressions are supported: <code>{{#if title && content}}</code>, <code>{{#if title || content}}</code>, <code>{{#if !title}}</code>.</span><div class="scmb-snippet-panel" aria-live="polite"><div class="scmb-snippet-panel__header"><strong>Field Snippets</strong><span>Copy or insert snippets from your Module Fields.</span></div><div class="scmb-snippet-list"><p class="scmb-snippet-empty">Add fields in Module Fields to generate snippets.</p></div></div>',
                         'scmb'
                     ),
                     'rows' => 15,
@@ -231,7 +231,7 @@ $(document).ready(function() {
                             'label' => __('Field Name', 'scmb'),
                             'name' => 'field_name',
                             'type' => 'text',
-                            'instructions' => __('Use lowercase, no spaces (e.g., title, content, image)', 'scmb'),
+                            'instructions' => __('Use lowercase underscores only (e.g., title, hero_headline, hero_rotating_headline). Spaces, dashes, and pasted text are normalized automatically.', 'scmb'),
                             'required' => 1,
                             'wrapper' => [
                                 'width' => '50',
@@ -293,9 +293,30 @@ $(document).ready(function() {
                             'type'  => 'textarea',
                             'name'  => 'field_sub_fields',
                             'label' => __('Sub-fields (for Repeater)', 'scmb'),
-                            'instructions' => __('Enter sub-field names, one per line. Format: field_name|Field Label|field_type', 'scmb'),
-                            'placeholder' => "item_title|Item Title|text\nitem_content|Item Content|textarea",
+                            'instructions' => __('Enter sub-field names, one per line. Format: field_name|Field Label|field_type. For select fields, add choices as value:Label pairs. Add |allow_null as the fifth value to allow an empty selection.', 'scmb'),
+                            'placeholder' => "item_title|Item Title|text\nitem_content|Item Content|textarea\nbutton_style|Button Style|select|primary:Primary,ghost:Ghost\nbutton_target|Button Target|select|same:Same Tab,new:New Tab|allow_null",
                             'rows' => 4,
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field' => 'field_field_type',
+                                        'operator' => '==',
+                                        'value' => 'repeater',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        [
+                            'key' => 'field_field_repeater_max',
+                            'label' => __('Max Rows (for Repeater)', 'scmb'),
+                            'name' => 'field_repeater_max',
+                            'type' => 'number',
+                            'instructions' => __('Leave blank for unlimited rows.', 'scmb'),
+                            'min' => 1,
+                            'step' => 1,
+                            'wrapper' => [
+                                'width' => '33',
+                            ],
                             'conditional_logic' => [
                                 [
                                     [

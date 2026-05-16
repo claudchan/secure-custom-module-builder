@@ -11,6 +11,7 @@ class SCMB_Blocks {
     
     private static $instance = null;
     private static $enqueued_modules = []; // Track which modules have been enqueued
+    private const TEMPLATE_NAME_PATTERN = '[a-zA-Z_][a-zA-Z0-9_]*';
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -121,13 +122,19 @@ class SCMB_Blocks {
             if (empty($field['field_name']) || empty($field['field_type'])) {
                 continue;
             }
+
+            $field_name = $this->normalize_template_field_name( $field['field_name'] );
+
+            if ( empty( $field_name ) ) {
+                continue;
+            }
             
-            $field_key = 'scmb_' . $field_key_prefix . '_' . $field['field_name'];
+            $field_key = 'scmb_' . $field_key_prefix . '_' . $field_name;
             
             $acf_field = [
                 'key' => $field_key,
-                'label' => $field['field_label'] ?: ucfirst($field['field_name']),
-                'name' => $field['field_name'],
+                'label' => $field['field_label'] ?: ucfirst($field_name),
+                'name' => $field_name,
                 'type' => $field['field_type'],
                 'required' => !empty($field['field_required']) ? 1 : 0,
                 'default_value' => $field['field_default'] ?? '',
@@ -146,6 +153,12 @@ class SCMB_Blocks {
                 $acf_field['layout'] = 'block';
                 $acf_field['button_label'] = 'Add Item';
                 $acf_field['sub_fields'] = [];
+
+                $repeater_max = isset( $field['field_repeater_max'] ) ? absint( $field['field_repeater_max'] ) : 0;
+
+                if ( $repeater_max > 0 ) {
+                    $acf_field['max'] = $repeater_max;
+                }
                 
                 // Parse sub-fields from field_sub_fields
                 if (!empty($field['field_sub_fields'])) {
@@ -157,7 +170,12 @@ class SCMB_Blocks {
                         
                         // Parse format: field_name|Field Label|field_type
                         $parts = explode('|', $sub_field_line);
-                        $sub_field_name = trim($parts[0]);
+                        $sub_field_name = $this->normalize_template_field_name( $parts[0] );
+
+                        if ( empty( $sub_field_name ) ) {
+                            continue;
+                        }
+
                         $sub_field_label = isset($parts[1]) ? trim($parts[1]) : ucfirst($sub_field_name);
                         $sub_field_type = isset($parts[2]) ? trim($parts[2]) : 'text';
                         
@@ -173,6 +191,13 @@ class SCMB_Blocks {
                             $sub_field['tabs'] = 'all';
                             $sub_field['toolbar'] = 'full';
                             $sub_field['media_upload'] = 1;
+                        }
+
+                        if ($sub_field_type === 'select') {
+                            $sub_field['choices'] = $this->parse_select_choices( isset($parts[3]) ? $parts[3] : '' );
+                            $sub_field['ui'] = 1;
+                            $sub_field['return_format'] = 'value';
+                            $sub_field['allow_null'] = $this->parse_boolean_option( isset($parts[4]) ? $parts[4] : false ) ? 1 : 0;
                         }
                         
                         $acf_field['sub_fields'][] = $sub_field;
@@ -294,6 +319,12 @@ class SCMB_Blocks {
     private function get_allowed_template_html() {
         $allowed_html = wp_kses_allowed_html( 'post' );
 
+        foreach ( $allowed_html as $tag => $attributes ) {
+            if ( is_array( $attributes ) ) {
+                $allowed_html[ $tag ]['uk-icon'] = true;
+            }
+        }
+
         $allowed_html['canvas'] = [
             'id'           => true,
             'class'        => true,
@@ -325,13 +356,121 @@ class SCMB_Blocks {
                 continue;
             }
 
-            $value = get_field( $field['field_name'] );
+            $field_name = $this->normalize_template_field_name( $field['field_name'] );
+
+            if ( empty( $field_name ) ) {
+                continue;
+            }
+
+            $value = $this->get_acf_field_value( $field_name, $field['field_name'] );
             $value = ( false !== $value ) ? $value : '';
 
-            $context[ $field['field_name'] ] = $this->prepare_field_value( $field, $value );
+            $field['field_name'] = $field_name;
+            $context[ $field_name ] = $this->prepare_field_value( $field, $value );
         }
 
         return $context;
+    }
+
+    /**
+     * Normalize template/ACF field names to lowercase snake_case.
+     *
+     * @param string $field_name Raw field name.
+     * @return string
+     */
+    private function normalize_template_field_name( $field_name ) {
+        $field_name = strtolower( (string) $field_name );
+        $field_name = preg_replace( '/[^a-z0-9_]+/', '_', $field_name );
+        $field_name = preg_replace( '/_+/', '_', $field_name );
+        $field_name = trim( $field_name, '_' );
+
+        if ( '' !== $field_name && ! preg_match( '/^[a-z_]/', $field_name ) ) {
+            $field_name = 'field_' . $field_name;
+        }
+
+        return $field_name;
+    }
+
+    /**
+     * Parse comma-separated select choices.
+     *
+     * Supports `value:Label`, `value=Label`, or `value`.
+     *
+     * @param string $raw_choices Raw choices string.
+     * @return array
+     */
+    private function parse_select_choices( $raw_choices ) {
+        $choices = [];
+        $items   = array_filter( array_map( 'trim', explode( ',', (string) $raw_choices ) ) );
+
+        foreach ( $items as $item ) {
+            $parts = preg_split( '/[:=]/', $item, 2 );
+
+            if ( false === $parts || empty( $parts[0] ) ) {
+                continue;
+            }
+
+            $value = $this->normalize_template_field_name( $parts[0] );
+
+            if ( empty( $value ) ) {
+                continue;
+            }
+
+            $label = isset( $parts[1] ) && '' !== trim( $parts[1] )
+                ? trim( $parts[1] )
+                : $value;
+
+            $choices[ $value ] = $label;
+        }
+
+        return $choices;
+    }
+
+    /**
+     * Parse a boolean option from sub-field config text.
+     *
+     * @param mixed $value Raw option value.
+     * @return bool
+     */
+    private function parse_boolean_option( $value ) {
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+
+        return in_array( strtolower( trim( (string) $value ) ), [ '1', 'true', 'yes', 'y', 'allow_null' ], true );
+    }
+
+    /**
+     * Read an ACF field value, allowing older hyphenated saved names as fallbacks.
+     *
+     * @param string $field_name     Normalized field name.
+     * @param string $original_name  Original configured field name.
+     * @return mixed
+     */
+    private function get_acf_field_value( $field_name, $original_name = '' ) {
+        $field_names = array_unique(
+            array_filter(
+                [
+                    $field_name,
+                    $original_name,
+                ],
+                'strlen'
+            )
+        );
+        $empty_value = false;
+
+        foreach ( $field_names as $candidate_name ) {
+            $value = get_field( $candidate_name );
+
+            if ( false === $value || null === $value || '' === $value ) {
+                $empty_value = $value;
+                continue;
+            }
+
+            return $value;
+        }
+
+        return $empty_value;
     }
 
     /**
@@ -386,6 +525,12 @@ class SCMB_Blocks {
             $prepared_row = [];
 
             foreach ( $row as $sub_field_name => $sub_field_value ) {
+                $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+
+                if ( empty( $sub_field_name ) ) {
+                    continue;
+                }
+
                 $sub_field_type = isset( $sub_field_types[ $sub_field_name ] ) ? $sub_field_types[ $sub_field_name ] : 'text';
                 $prepared_row[ $sub_field_name ] = $this->prepare_sub_field_value( $sub_field_type, $sub_field_value );
             }
@@ -419,7 +564,7 @@ class SCMB_Blocks {
             }
 
             $parts          = array_map( 'trim', explode( '|', $sub_field_line ) );
-            $sub_field_name = isset( $parts[0] ) ? $parts[0] : '';
+            $sub_field_name = isset( $parts[0] ) ? $this->normalize_template_field_name( $parts[0] ) : '';
             $sub_field_type = isset( $parts[2] ) ? $parts[2] : 'text';
 
             if ( empty( $sub_field_name ) ) {
@@ -462,8 +607,10 @@ class SCMB_Blocks {
      * Render a template string using the supplied context.
      *
      * Supported syntax:
+     * - <!-- editor-only comments -->
      * - {{field_name}}
      * - {{#field_name}} ... {{/field_name}}
+     * - {{#repeater_name}} {{#if __first}}...{{/if}} {{/repeater_name}}
      * - {{#if field_name}} ... {{else}} ... {{/if}}
      * - {{#if title && content}} ... {{/if}}
      * - {{#if title || content}} ... {{/if}}
@@ -478,11 +625,32 @@ class SCMB_Blocks {
             return '';
         }
 
+        $template = $this->strip_template_comments( $template );
         $template = $this->render_template_sections( $template, $context );
         $template = $this->replace_template_variables( $template, $context );
 
         // Remove any unsupported or unresolved tags from the final output.
         return preg_replace( '/\{\{[^}]+\}\}/', '', $template );
+    }
+
+    /**
+     * Remove HTML comments before macro rendering.
+     *
+     * Comments are intended as editor notes only. Stripping them first prevents
+     * commented-out template tags or markup from being parsed into partial
+     * frontend output.
+     *
+     * @param string $template Template markup.
+     * @return string
+     */
+    private function strip_template_comments( $template ) {
+        $template = preg_replace( '/<!--[\s\S]*?-->/', '', $template );
+
+        if ( false === $template ) {
+            return '';
+        }
+
+        return preg_replace( '/<!--[\s\S]*$/', '', $template );
     }
 
     /**
@@ -493,7 +661,8 @@ class SCMB_Blocks {
      * @return string
      */
     private function render_template_sections( $template, $context ) {
-        $opening_pattern = '/\{\{\s*#(?:(if)\s+([^}]+?)|([a-zA-Z_][a-zA-Z0-9_]*))\s*\}\}/';
+        $name_pattern    = self::TEMPLATE_NAME_PATTERN;
+        $opening_pattern = '/\{\{\s*#(?:(if)\s+([^}]+?)|(' . $name_pattern . '))\s*\}\}/';
 
         while ( preg_match( $opening_pattern, $template, $matches, PREG_OFFSET_CAPTURE ) ) {
             $full_match     = $matches[0][0];
@@ -535,7 +704,8 @@ class SCMB_Blocks {
      * @return array|false
      */
     private function find_template_section_boundaries( $template, $offset, $section_type, $section_name ) {
-        $pattern       = '/\{\{\s*(#if\s+[^}]+|#[a-zA-Z_][a-zA-Z0-9_]*|\/if|\/[a-zA-Z_][a-zA-Z0-9_]*|else)\s*\}\}/';
+        $name_pattern  = self::TEMPLATE_NAME_PATTERN;
+        $pattern       = '/\{\{\s*(#if\s+[^}]+|#' . $name_pattern . '|\/if|\/' . $name_pattern . '|else)\s*\}\}/';
         $search_offset = $offset;
         $depth         = 1;
         $else_tag      = null;
@@ -634,12 +804,25 @@ class SCMB_Blocks {
             return '';
         }
 
-        foreach ( $section_value as $row ) {
+        $total_rows = count( $section_value );
+
+        foreach ( $section_value as $row_index => $row ) {
             if ( ! is_array( $row ) ) {
                 continue;
             }
 
-            $row_context = $this->build_child_template_context( $context, $row );
+            $row_context = $this->build_child_template_context(
+                $context,
+                array_merge(
+                    $row,
+                    [
+                        '__index'    => $row_index,
+                        '__position' => $row_index + 1,
+                        '__first'    => 0 === $row_index,
+                        '__last'     => $row_index === $total_rows - 1,
+                    ]
+                )
+            );
             $output     .= $this->render_template( $section_content, $row_context );
         }
 
@@ -665,7 +848,23 @@ class SCMB_Blocks {
      * @return mixed
      */
     private function get_template_context_value( $context, $field_name ) {
-        return isset( $context[ $field_name ] ) ? $context[ $field_name ] : null;
+        if ( isset( $context[ $field_name ] ) ) {
+            return $context[ $field_name ];
+        }
+
+        $underscore_alias = str_replace( '-', '_', $field_name );
+
+        if ( $underscore_alias !== $field_name && isset( $context[ $underscore_alias ] ) ) {
+            return $context[ $underscore_alias ];
+        }
+
+        $hyphen_alias = str_replace( '_', '-', $field_name );
+
+        if ( $hyphen_alias !== $field_name && isset( $context[ $hyphen_alias ] ) ) {
+            return $context[ $hyphen_alias ];
+        }
+
+        return null;
     }
 
     /**
@@ -766,7 +965,7 @@ class SCMB_Blocks {
             $operand = ltrim( substr( $operand, 1 ) );
         }
 
-        if ( ! preg_match( '/^[a-zA-Z_][a-zA-Z0-9_]*$/', $operand ) ) {
+        if ( ! preg_match( '/^' . self::TEMPLATE_NAME_PATTERN . '$/', $operand ) ) {
             return false;
         }
 
@@ -789,7 +988,7 @@ class SCMB_Blocks {
      */
     private function replace_template_variables( $template, $values ) {
         return preg_replace_callback(
-            '/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/',
+            '/\{\{\s*(' . self::TEMPLATE_NAME_PATTERN . ')\s*\}\}/',
             function( $matches ) use ( $values ) {
                 $value = $this->get_template_context_value( $values, $matches[1] );
                 return $this->stringify_template_value( $value );

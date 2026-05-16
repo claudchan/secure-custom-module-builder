@@ -32,6 +32,13 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.7
+* Added repeater row helpers for templates: `__first`, `__last`, `__index`, and `__position`.
+* Normalized module field names to lowercase underscores while typing, pasting, importing, registering, and rendering.
+* Added an optional Max Rows setting for repeater fields.
+* Added select choices for repeater sub-fields using `field_name|Field Label|select|value:Label,other:Other Label`, with optional `|allow_null`.
+* Added module field snippet Copy and Insert actions for HTML templates.
+
 ### 1.0.6
 * Added a plugin-row "Check for update" action that clears SCMB and WordPress update caches.
 

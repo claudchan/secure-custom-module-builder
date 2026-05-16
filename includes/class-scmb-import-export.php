@@ -467,18 +467,54 @@ class SCMB_Import_Export {
 
             $field_type = sanitize_key($field['field_type'] ?? 'text');
             $sanitized[] = [
-                'field_name' => sanitize_key($field['field_name'] ?? ''),
+                'field_name' => $this->normalize_field_name($field['field_name'] ?? ''),
                 'field_label' => sanitize_text_field($field['field_label'] ?? ''),
                 'field_type' => in_array($field_type, $allowed_types, true) ? $field_type : 'text',
                 'field_default' => sanitize_text_field($field['field_default'] ?? ''),
                 'field_required' => !empty($field['field_required']) ? 1 : 0,
-                'field_sub_fields' => sanitize_textarea_field($field['field_sub_fields'] ?? ''),
+                'field_sub_fields' => $this->normalize_sub_field_lines(sanitize_textarea_field($field['field_sub_fields'] ?? '')),
+                'field_repeater_max' => isset($field['field_repeater_max']) ? absint($field['field_repeater_max']) : '',
             ];
         }
 
         return array_values(array_filter($sanitized, function($field) {
             return !empty($field['field_name']);
         }));
+    }
+
+    private function normalize_sub_field_lines($value) {
+        $lines = preg_split('/\r\n|\r|\n/', (string) $value);
+
+        if (false === $lines) {
+            return '';
+        }
+
+        $normalized_lines = [];
+
+        foreach ($lines as $line) {
+            $parts = explode('|', $line);
+
+            if (!empty($parts[0])) {
+                $parts[0] = $this->normalize_field_name($parts[0]);
+            }
+
+            $normalized_lines[] = implode('|', $parts);
+        }
+
+        return implode("\n", $normalized_lines);
+    }
+
+    private function normalize_field_name($value) {
+        $value = strtolower((string) $value);
+        $value = preg_replace('/[^a-z0-9_]+/', '_', $value);
+        $value = preg_replace('/_+/', '_', $value);
+        $value = trim($value, '_');
+
+        if ('' !== $value && !preg_match('/^[a-z_]/', $value)) {
+            $value = 'field_' . $value;
+        }
+
+        return $value;
     }
 
     /**
