@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.6
+* Added a plugin-row "Check for update" action that clears SCMB and WordPress update caches.
+
 ### 1.0.5
 * Added stable module keys for safer cross-site module identity.
 * Added Module Builder > Import / Export with SCMB JSON package downloads.

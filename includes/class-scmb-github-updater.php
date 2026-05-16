@@ -91,6 +91,76 @@ class SCMB_GitHub_Updater {
         add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_for_update' ) );
         add_filter( 'plugins_api', array( $this, 'plugin_information' ), 10, 3 );
         add_filter( 'upgrader_post_install', array( $this, 'rename_github_folder' ), 10, 3 );
+        add_filter( 'plugin_action_links_' . $this->plugin_basename, array( $this, 'add_check_update_action_link' ) );
+        add_action( 'admin_post_scmb_check_for_update', array( $this, 'handle_manual_update_check' ) );
+        add_action( 'admin_notices', array( $this, 'show_manual_update_check_notice' ) );
+    }
+
+    /**
+     * Add a manual update check link to the Plugins screen.
+     *
+     * @param array $links Existing plugin row links.
+     * @return array
+     */
+    public function add_check_update_action_link( $links ) {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            return $links;
+        }
+
+        $url = wp_nonce_url(
+            admin_url( 'admin-post.php?action=scmb_check_for_update' ),
+            'scmb_check_for_update',
+            'scmb_check_update_nonce'
+        );
+
+        $links[] = sprintf(
+            '<a href="%1$s">%2$s</a>',
+            esc_url( $url ),
+            esc_html__( 'Check for update', 'scmb' )
+        );
+
+        return $links;
+    }
+
+    /**
+     * Clear update caches and ask WordPress to check plugins again.
+     */
+    public function handle_manual_update_check() {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_die( esc_html__( 'You do not have permission to check plugin updates.', 'scmb' ) );
+        }
+
+        check_admin_referer( 'scmb_check_for_update', 'scmb_check_update_nonce' );
+
+        $this->clear_update_cache();
+        wp_update_plugins();
+
+        wp_safe_redirect(
+            add_query_arg(
+                array(
+                    'scmb_update_check' => 'complete',
+                ),
+                admin_url( 'plugins.php' )
+            )
+        );
+        exit;
+    }
+
+    /**
+     * Display a notice after a manual update check.
+     */
+    public function show_manual_update_check_notice() {
+        if ( empty( $_GET['scmb_update_check'] ) || 'complete' !== $_GET['scmb_update_check'] ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            return;
+        }
+
+        echo '<div class="notice notice-success is-dismissible"><p>';
+        echo esc_html__( 'SCMB update check complete. If a newer GitHub release is available, WordPress will show it in the plugin row.', 'scmb' );
+        echo '</p></div>';
     }
 
     /**
@@ -259,5 +329,13 @@ class SCMB_GitHub_Updater {
         set_transient( $this->cache_key, $release, 12 * HOUR_IN_SECONDS );
 
         return $release;
+    }
+
+    /**
+     * Clear cached GitHub and WordPress plugin update data.
+     */
+    private function clear_update_cache() {
+        delete_transient( $this->cache_key );
+        delete_site_transient( 'update_plugins' );
     }
 }
