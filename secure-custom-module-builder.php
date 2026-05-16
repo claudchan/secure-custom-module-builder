@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/claudchan/secure-custom-module-builder
  * Update URI: https://github.com/claudchan/secure-custom-module-builder
  * Description: Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: Claud Chan
  * Author URI: https://github.com/claudchan
  * License: GPL v2 or later
@@ -75,7 +75,7 @@ function scmb_acf_missing_notice() {
 }
 
 // Define plugin constants
-define('SCMB_VERSION', '1.0.4');
+define('SCMB_VERSION', '1.0.5');
 define('SCMB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCMB_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCMB_PLUGIN_FILE', __FILE__);
@@ -112,6 +112,7 @@ class Secure_Custom_Module_Builder {
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-github-updater.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-post-type.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-admin.php';
+        require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-import-export.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-blocks.php';
         require_once SCMB_PLUGIN_DIR . 'includes/class-scmb-renderer.php';
     }
@@ -133,6 +134,7 @@ class Secure_Custom_Module_Builder {
         // Initialize components
         SCMB_Post_Type::get_instance();
         SCMB_Admin::get_instance();
+        SCMB_Import_Export::get_instance();
         SCMB_Blocks::get_instance();
         SCMB_Renderer::get_instance();
         

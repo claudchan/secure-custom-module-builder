@@ -68,7 +68,7 @@ class SCMB_Blocks {
      */
     private function register_single_block($module) {
         $module_id = $module->ID;
-        $block_slug = sanitize_title($module->post_title);
+        $block_slug = $this->get_module_key($module_id, $module->post_title);
         
         // Get module configuration
         $label = get_field('module_label', $module_id) ?: $module->post_title;
@@ -114,13 +114,15 @@ class SCMB_Blocks {
         }
         
         $acf_fields = [];
+        $module_key = get_field('module_key', $module_id);
+        $field_key_prefix = !empty($module_key) ? str_replace('-', '_', sanitize_title($module_key)) : (string) $module_id;
         
         foreach ($fields as $field) {
             if (empty($field['field_name']) || empty($field['field_type'])) {
                 continue;
             }
             
-            $field_key = 'scmb_' . $module_id . '_' . $field['field_name'];
+            $field_key = 'scmb_' . $field_key_prefix . '_' . $field['field_name'];
             
             $acf_field = [
                 'key' => $field_key,
@@ -184,7 +186,7 @@ class SCMB_Blocks {
         // Register field group
         if (!empty($acf_fields)) {
             acf_add_local_field_group([
-                'key' => 'group_scmb_' . $module_id,
+                'key' => 'group_scmb_' . $field_key_prefix,
                 'title' => $label . ' Fields',
                 'fields' => $acf_fields,
                 'location' => [
@@ -205,6 +207,24 @@ class SCMB_Blocks {
                 'active' => true,
             ]);
         }
+    }
+
+    /**
+     * Get a stable module key for block registration.
+     *
+     * @param int    $module_id Module post ID.
+     * @param string $fallback  Fallback title.
+     * @return string
+     */
+    private function get_module_key($module_id, $fallback = '') {
+        $module_key = get_field('module_key', $module_id);
+        $module_key = sanitize_title($module_key);
+
+        if (empty($module_key)) {
+            $module_key = sanitize_title($fallback);
+        }
+
+        return !empty($module_key) ? $module_key : 'module-' . (int) $module_id;
     }
     
     /**

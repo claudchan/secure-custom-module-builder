@@ -21,6 +21,7 @@ class SCMB_Post_Type {
     private function __construct() {
         add_action('init', [$this, 'register_post_type']);
         add_action('acf/init', [$this, 'register_acf_fields']);
+        add_action('acf/save_post', [$this, 'ensure_module_key'], 20);
     }
     
     /**
@@ -72,6 +73,15 @@ class SCMB_Post_Type {
             'key' => 'group_scmb_config',
             'title' => __('Module Configuration', 'scmb'),
             'fields' => [
+                [
+                    'key' => 'field_module_key',
+                    'label' => __('Module Key', 'scmb'),
+                    'name' => 'module_key',
+                    'type' => 'text',
+                    'instructions' => __('Stable internal key used for imports, exports, and Gutenberg block registration. Use lowercase letters, numbers, and hyphens only.', 'scmb'),
+                    'required' => 0,
+                    'placeholder' => 'hero-banner',
+                ],
                 [
                     'key' => 'field_module_label',
                     'label' => __('Module Label', 'scmb'),
@@ -312,5 +322,96 @@ $(document).ready(function() {
             'style' => 'default',
             'menu_order' => 2,
         ]);
+    }
+
+    /**
+     * Ensure every module has a stable key for portable imports/exports.
+     *
+     * @param int|string $post_id ACF save post ID.
+     * @return void
+     */
+    public function ensure_module_key($post_id) {
+        if (!is_numeric($post_id) || 'scmb_module' !== get_post_type((int) $post_id)) {
+            return;
+        }
+
+        $post_id = (int) $post_id;
+        $key = get_post_meta($post_id, 'module_key', true);
+        $key = $this->sanitize_module_key($key);
+
+        if (empty($key)) {
+            $key = $this->generate_unique_module_key(get_the_title($post_id), $post_id);
+        } elseif ($this->module_key_exists($key, $post_id)) {
+            $key = $this->generate_unique_module_key($key, $post_id);
+        }
+
+        if (function_exists('update_field')) {
+            update_field('module_key', $key, $post_id);
+        } else {
+            update_post_meta($post_id, 'module_key', $key);
+            update_post_meta($post_id, '_module_key', 'field_module_key');
+        }
+    }
+
+    /**
+     * Sanitize a module key.
+     *
+     * @param string $key Raw key.
+     * @return string
+     */
+    private function sanitize_module_key($key) {
+        $key = sanitize_title((string) $key);
+        return preg_replace('/[^a-z0-9-]/', '', $key);
+    }
+
+    /**
+     * Generate a unique module key.
+     *
+     * @param string $source Source text.
+     * @param int    $exclude_post_id Existing post ID to ignore.
+     * @return string
+     */
+    private function generate_unique_module_key($source, $exclude_post_id = 0) {
+        $base = $this->sanitize_module_key($source);
+
+        if (empty($base)) {
+            $base = 'module';
+        }
+
+        $key = $base;
+        $suffix = 2;
+
+        while ($this->module_key_exists($key, $exclude_post_id)) {
+            $key = $base . '-' . $suffix;
+            $suffix++;
+        }
+
+        return $key;
+    }
+
+    /**
+     * Check if a module key is already used.
+     *
+     * @param string $key Module key.
+     * @param int    $exclude_post_id Existing post ID to ignore.
+     * @return bool
+     */
+    private function module_key_exists($key, $exclude_post_id = 0) {
+        $posts = get_posts([
+            'post_type' => 'scmb_module',
+            'post_status' => 'any',
+            'posts_per_page' => 1,
+            'fields' => 'ids',
+            'exclude' => $exclude_post_id ? [(int) $exclude_post_id] : [],
+            'meta_query' => [
+                [
+                    'key' => 'module_key',
+                    'value' => $key,
+                    'compare' => '=',
+                ],
+            ],
+        ]);
+
+        return !empty($posts);
     }
 }

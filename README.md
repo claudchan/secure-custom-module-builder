@@ -32,6 +32,11 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.5
+* Added stable module keys for safer cross-site module identity.
+* Added Module Builder > Import / Export with SCMB JSON package downloads.
+* Added import preview and matching by module key to avoid same-name module conflicts.
+
 ### 1.0.4
 * Allowed canvas elements in rendered module templates for interactive frontend modules.
 
