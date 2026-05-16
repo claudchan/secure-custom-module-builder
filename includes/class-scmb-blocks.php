@@ -830,11 +830,18 @@ class SCMB_Blocks {
             // Remove DOMContentLoaded listener from user code since we'll handle it
             $cleaned_js = $this->remove_dom_ready_wrapper($sanitized_js);
             
-            // Wrap the JS to execute immediately without jQuery dependency
-            // This ensures it runs regardless of jQuery availability
+            // Wrap the JS to execute once without duplicating the module code.
+            // The initializer is either called immediately or attached to DOMContentLoaded.
             $wrapped_js = sprintf(
-                '(function(){if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){%s});}else{%s;}})();',
-                $cleaned_js,
+                "(function(){\n" .
+                "\"use strict\";\n" .
+                "function scmbInitModule(){\n%s\n}\n" .
+                "if(document.readyState===\"loading\"){\n" .
+                "document.addEventListener(\"DOMContentLoaded\",scmbInitModule,{once:true});\n" .
+                "}else{\n" .
+                "scmbInitModule();\n" .
+                "}\n" .
+                "})();",
                 $cleaned_js
             );
             

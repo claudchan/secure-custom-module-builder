@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.1
+* Fixed frontend JavaScript wrapper output to prevent malformed DOMContentLoaded initialization and duplicate module execution.
+
 ### 1.0.0
 * Initial stable release.
 * Added core module creation API.
