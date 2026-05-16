@@ -259,11 +259,36 @@ class SCMB_Blocks {
         }
 
         // Output HTML - safe because all values are pre-escaped.
-        echo wp_kses_post( $output );
+        echo wp_kses( $output, $this->get_allowed_template_html() );
 
         if ( $is_preview ) {
             echo '</div>';
         }
+    }
+
+    /**
+     * Get allowed HTML markup for rendered module templates.
+     *
+     * @return array
+     */
+    private function get_allowed_template_html() {
+        $allowed_html = wp_kses_allowed_html( 'post' );
+
+        $allowed_html['canvas'] = [
+            'id'           => true,
+            'class'        => true,
+            'style'        => true,
+            'width'        => true,
+            'height'       => true,
+            'role'         => true,
+            'aria-label'   => true,
+            'aria-hidden'  => true,
+            'data-module'  => true,
+            'data-scmb'    => true,
+            'data-context' => true,
+        ];
+
+        return $allowed_html;
     }
 
     /**

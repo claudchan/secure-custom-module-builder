@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.4
+* Allowed canvas elements in rendered module templates for interactive frontend modules.
+
 ### 1.0.3
 * Fixed DOMContentLoaded wrapper stripping for arrow-function module scripts to prevent stray closing tokens in generated frontend JavaScript.
 
