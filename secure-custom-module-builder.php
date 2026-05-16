@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/claudchan/secure-custom-module-builder
  * Update URI: https://github.com/claudchan/secure-custom-module-builder
  * Description: Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Claud Chan
  * Author URI: https://github.com/claudchan
  * License: GPL v2 or later
@@ -19,12 +19,23 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Checks if Advanced Custom Fields is active on plugin load.
- * If it's not, the plugin is deactivated and an admin notice is shown.
+ * Checks if an ACF-compatible fields plugin is active.
+ *
+ * Supports Advanced Custom Fields and Secure Custom Fields by checking for the
+ * APIs SCMB uses instead of relying only on a specific class name.
+ *
+ * @return bool
+ */
+function scmb_has_acf_dependency() {
+    return class_exists( 'ACF' )
+        || ( function_exists( 'get_field' ) && function_exists( 'acf_add_local_field_group' ) );
+}
+
+/**
+ * Deactivates SCMB if no ACF-compatible fields plugin is active.
  */
 function scmb_check_for_acf_dependency() {
-    // Check if the ACF class exists.
-    if ( ! class_exists( 'ACF' ) ) {
+    if ( ! scmb_has_acf_dependency() ) {
 
         // Deactivate the plugin.
         deactivate_plugins( plugin_basename( __FILE__ ) );
@@ -46,7 +57,7 @@ add_action( 'admin_init', 'scmb_check_for_acf_dependency' );
  */
 function scmb_acf_missing_notice() {
     $plugin_name = '<strong>' . esc_html__( 'Secure Custom Module Builder', 'scmb' ) . '</strong>';
-    $acf_link    = esc_url( 'https://www.advancedcustomfields.com/pro/' );
+    $acf_link    = esc_url( 'https://wordpress.org/plugins/advanced-custom-fields/' );
     ?>
     <div class="notice notice-error is-dismissible">
         <p>
@@ -55,7 +66,7 @@ function scmb_acf_missing_notice() {
                 /* translators: 1: Plugin name, 2: ACF link */
                 esc_html__( '%1$s has been deactivated. It requires the %2$s plugin to be installed and activated.', 'scmb' ),
                 $plugin_name,
-                '<a href="' . $acf_link . '" target="_blank">' . esc_html__( 'Advanced Custom Fields (ACF)', 'scmb' ) . '</a>'
+                '<a href="' . $acf_link . '" target="_blank">' . esc_html__( 'Advanced Custom Fields or Secure Custom Fields', 'scmb' ) . '</a>'
             );
             ?>
         </p>
@@ -64,7 +75,7 @@ function scmb_acf_missing_notice() {
 }
 
 // Define plugin constants
-define('SCMB_VERSION', '1.0.1');
+define('SCMB_VERSION', '1.0.2');
 define('SCMB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCMB_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCMB_PLUGIN_FILE', __FILE__);
@@ -176,8 +187,8 @@ function scmb_enqueue_admin_scripts( $hook_suffix ) {
         return;
     }
 
-    // Check if ACF is missing
-    if ( class_exists( 'ACF' ) ) {
+    // Check if an ACF-compatible fields plugin is missing.
+    if ( scmb_has_acf_dependency() ) {
         return;
     }
 

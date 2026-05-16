@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.2
+* Fixed dependency detection so SCMB remains active with ACF-compatible Secure Custom Fields installs.
+
 ### 1.0.1
 * Fixed frontend JavaScript wrapper output to prevent malformed DOMContentLoaded initialization and duplicate module execution.
 
