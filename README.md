@@ -32,6 +32,11 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.9
+* Added module preview thumbnail uploads for Gutenberg inserter previews.
+* Added export/import support for preview thumbnail attachment IDs and single-instance settings.
+* Improved replace imports so exact title matches can be overwritten when module keys differ.
+
 ### 1.0.7
 * Added repeater row helpers for templates: `__first`, `__last`, `__index`, and `__position`.
 * Normalized module field names to lowercase underscores while typing, pasting, importing, registering, and rendering.

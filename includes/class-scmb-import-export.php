@@ -126,7 +126,7 @@ class SCMB_Import_Export {
                                         <option value="create_new"><?php esc_html_e('Create new modules only', 'scmb'); ?></option>
                                         <option value="replace_matching"><?php esc_html_e('Replace matching modules', 'scmb'); ?></option>
                                     </select>
-                                    <p class="description"><?php esc_html_e('Matching uses the stable module key, not the display name.', 'scmb'); ?></p>
+                                    <p class="description"><?php esc_html_e('Updates match by stable module key. Replace mode also falls back to an exact module title match when the key is different or missing.', 'scmb'); ?></p>
                                 </td>
                             </tr>
                         </table>
@@ -302,7 +302,9 @@ class SCMB_Import_Export {
                 'module_category' => $this->get_module_value($module_id, 'module_category'),
                 'module_icon' => $this->get_module_value($module_id, 'module_icon'),
                 'module_description' => $this->get_module_value($module_id, 'module_description'),
+                'module_preview_image' => $this->sanitize_attachment_id($this->get_module_value($module_id, 'module_preview_image')),
                 'module_status' => (bool) $this->get_module_value($module_id, 'module_status'),
+                'module_single_instance' => (bool) $this->get_module_value($module_id, 'module_single_instance'),
                 'module_compact_code' => (bool) $this->get_module_value($module_id, 'module_compact_code'),
             ],
             'template' => [
@@ -333,7 +335,8 @@ class SCMB_Import_Export {
 
         foreach ($package['modules'] as $module) {
             $module_key = $this->sanitize_module_key($module['module_key'] ?? ($module['title'] ?? 'module'));
-            $existing_id = $this->find_module_by_key($module_key);
+            $match = $this->resolve_import_match($module, $module_key, $mode);
+            $existing_id = $match['id'];
 
             if ($existing_id && 'create_new' === $mode) {
                 $preview['duplicate']++;
@@ -347,6 +350,14 @@ class SCMB_Import_Export {
                 $preview['warnings'][] = sprintf(
                     __('A module named "%s" already exists with a different key. It will not be overwritten.', 'scmb'),
                     $module['title']
+                );
+            }
+
+            if ($existing_id && 'title' === $match['matched_by']) {
+                $preview['warnings'][] = sprintf(
+                    __('A module named "%s" has a different key. Replace mode will overwrite it and set its key to "%s".', 'scmb'),
+                    $module['title'],
+                    $module_key
                 );
             }
         }
@@ -378,7 +389,8 @@ class SCMB_Import_Export {
                 continue;
             }
 
-            $existing_id = $this->find_module_by_key($module_key);
+            $match = $this->resolve_import_match($module, $module_key, $mode);
+            $existing_id = $match['id'];
             $target_id = 0;
 
             if ($existing_id && 'create_new' !== $mode) {
@@ -433,7 +445,9 @@ class SCMB_Import_Export {
             'module_category' => sanitize_key($config['module_category'] ?? 'custom'),
             'module_icon' => sanitize_text_field($config['module_icon'] ?? 'admin-post'),
             'module_description' => sanitize_textarea_field($config['module_description'] ?? ''),
+            'module_preview_image' => $this->sanitize_attachment_id($config['module_preview_image'] ?? 0),
             'module_status' => !empty($config['module_status']) ? 1 : 0,
+            'module_single_instance' => !empty($config['module_single_instance']) ? 1 : 0,
             'module_compact_code' => !empty($config['module_compact_code']) ? 1 : 0,
             'module_html' => isset($template['module_html']) ? (string) $template['module_html'] : '',
             'module_css' => isset($template['module_css']) ? (string) $template['module_css'] : '',
@@ -515,6 +529,14 @@ class SCMB_Import_Export {
         }
 
         return $value;
+    }
+
+    private function sanitize_attachment_id($value) {
+        if (is_array($value)) {
+            return absint($value['ID'] ?? $value['id'] ?? 0);
+        }
+
+        return is_numeric($value) ? absint($value) : 0;
     }
 
     /**
@@ -642,6 +664,43 @@ class SCMB_Import_Export {
         ]);
 
         return !empty($posts) ? (int) $posts[0] : 0;
+    }
+
+    /**
+     * Resolve the module an import should update.
+     *
+     * Stable keys are preferred. Replace mode additionally allows an exact title
+     * fallback so modules from older/other sites can intentionally overwrite a
+     * same-named local module whose key differs or is missing.
+     *
+     * @param array  $module Import module payload.
+     * @param string $module_key Sanitized import module key.
+     * @param string $mode Import mode.
+     * @return array{id:int,matched_by:string}
+     */
+    private function resolve_import_match($module, $module_key, $mode) {
+        $existing_id = $this->find_module_by_key($module_key);
+
+        if ($existing_id) {
+            return [
+                'id' => $existing_id,
+                'matched_by' => 'key',
+            ];
+        }
+
+        if ('replace_matching' !== $mode || empty($module['title'])) {
+            return [
+                'id' => 0,
+                'matched_by' => '',
+            ];
+        }
+
+        $title_match_id = $this->find_module_by_title($module['title']);
+
+        return [
+            'id' => $title_match_id,
+            'matched_by' => $title_match_id ? 'title' : '',
+        ];
     }
 
     private function find_module_by_title($title) {

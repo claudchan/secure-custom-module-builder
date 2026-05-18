@@ -120,6 +120,8 @@ class SCMB_Blocks {
         $description = get_field('module_description', $module_id) ?: '';
         $category = get_field('module_category', $module_id) ?: 'custom';
         $icon = get_field('module_icon', $module_id) ?: 'admin-post';
+        $preview_image = $this->get_module_preview_image( $module_id );
+        $single_instance = (bool) get_field('module_single_instance', $module_id);
         $fields = get_field('module_fields', $module_id) ?: [];
         
         // Register ACF field group for this block FIRST
@@ -127,7 +129,7 @@ class SCMB_Blocks {
         $this->register_block_editor_label($block_slug, $label, $icon);
         
         // Register the block type
-        acf_register_block_type([
+        $block_args = [
             'name' => $block_slug,
             'title' => $label,
             'description' => $description,
@@ -139,6 +141,7 @@ class SCMB_Blocks {
                 'align' => true,
                 'mode' => true,
                 'jsx' => true,
+                'multiple' => !$single_instance,
             ],
             'render_callback' => function($block, $content = '', $is_preview = false, $post_id = 0) use ($module_id) {
                 $this->render_block($block, $module_id, $is_preview, $post_id);
@@ -148,7 +151,61 @@ class SCMB_Blocks {
             'enqueue_assets' => function() use ($module_id) {
                 $this->enqueue_block_assets($module_id);
             },
-        ]);
+        ];
+
+        if ( ! empty( $preview_image['url'] ) ) {
+            $block_args['example'] = [
+                'attributes' => [
+                    'mode' => 'preview',
+                    'data' => [
+                        'scmb_is_inserter_preview' => 1,
+                        'scmb_preview_image_url' => $preview_image['url'],
+                        'scmb_preview_image_alt' => $preview_image['alt'],
+                    ],
+                ],
+            ];
+        }
+
+        acf_register_block_type( $block_args );
+    }
+
+    /**
+     * Get the uploaded inserter preview image for a module.
+     *
+     * @param int $module_id Module post ID.
+     * @return array{url:string,alt:string}
+     */
+    private function get_module_preview_image( $module_id ) {
+        $image_value = get_field( 'module_preview_image', $module_id );
+        $image_id = 0;
+        $image_url = '';
+
+        if ( is_array( $image_value ) ) {
+            $image_id = absint( $image_value['ID'] ?? $image_value['id'] ?? 0 );
+            $image_url = ! empty( $image_value['url'] ) ? esc_url_raw( $image_value['url'] ) : '';
+        } elseif ( is_numeric( $image_value ) ) {
+            $image_id = absint( $image_value );
+        } elseif ( is_string( $image_value ) ) {
+            $image_url = esc_url_raw( $image_value );
+        }
+
+        if ( $image_id ) {
+            $image_url = wp_get_attachment_image_url( $image_id, 'medium_large' );
+        }
+
+        if ( ! $image_url ) {
+            return [
+                'url' => '',
+                'alt' => '',
+            ];
+        }
+
+        $image_alt = $image_id ? get_post_meta( $image_id, '_wp_attachment_image_alt', true ) : '';
+
+        return [
+            'url' => esc_url_raw( $image_url ),
+            'alt' => wp_strip_all_tags( $image_alt ),
+        ];
     }
 
     /**
@@ -367,6 +424,15 @@ class SCMB_Blocks {
      * @return void
      */
     private function render_block( $block, $module_id, $is_preview, $post_id ) {
+        if ( $is_preview && ! empty( $block['data']['scmb_is_inserter_preview'] ) && ! empty( $block['data']['scmb_preview_image_url'] ) ) {
+            printf(
+                '<div class="scmb-inserter-preview"><img src="%s" alt="%s"></div>',
+                esc_url( $block['data']['scmb_preview_image_url'] ),
+                esc_attr( $block['data']['scmb_preview_image_alt'] ?? get_the_title( $module_id ) )
+            );
+            return;
+        }
+
         // Get module template and CSS.
         $html_template = get_field( 'module_html', $module_id );
         $css = get_field( 'module_css', $module_id );

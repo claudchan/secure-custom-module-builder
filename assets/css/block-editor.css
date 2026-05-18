@@ -83,6 +83,24 @@
     border: 1px dashed #c3c4c7;
 }
 
+.scmb-inserter-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 144px;
+    overflow: hidden;
+    background: #f6f7f7;
+}
+
+.scmb-inserter-preview img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 180px;
+    object-fit: cover;
+}
+
 @media (max-width: 782px) {
     .editor-styles-wrapper .scmb-editor-block .scmb-editor-block-title {
         align-items: flex-start;
