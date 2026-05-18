@@ -11,6 +11,7 @@ class SCMB_Blocks {
     
     private static $instance = null;
     private static $enqueued_modules = []; // Track which modules have been enqueued
+    private static $editor_block_labels = [];
     private const TEMPLATE_NAME_PATTERN = '[a-zA-Z_][a-zA-Z0-9_]*';
     
     public static function get_instance() {
@@ -22,6 +23,49 @@ class SCMB_Blocks {
     
     private function __construct() {
         add_action('acf/init', [$this, 'register_blocks']);
+        add_action('enqueue_block_editor_assets', [$this, 'enqueue_block_editor_assets']);
+        add_action('enqueue_block_assets', [$this, 'enqueue_block_editor_assets']);
+    }
+
+    /**
+     * Enqueue editor-only styles for SCMB block previews.
+     *
+     * @return void
+     */
+    public function enqueue_block_editor_assets() {
+        if ( ! is_admin() ) {
+            return;
+        }
+
+        $editor_css_path = SCMB_PLUGIN_DIR . 'assets/css/block-editor.css';
+        $editor_js_path  = SCMB_PLUGIN_DIR . 'assets/js/block-editor.js';
+
+        if ( ! file_exists( $editor_css_path ) ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'scmb-block-editor',
+            SCMB_PLUGIN_URL . 'assets/css/block-editor.css',
+            [],
+            filemtime( $editor_css_path )
+        );
+
+        if ( file_exists( $editor_js_path ) ) {
+            wp_enqueue_script(
+                'scmb-block-editor',
+                SCMB_PLUGIN_URL . 'assets/js/block-editor.js',
+                [ 'wp-data', 'wp-dom-ready' ],
+                filemtime( $editor_js_path ),
+                true
+            );
+
+            wp_add_inline_script(
+                'scmb-block-editor',
+                'window.scmbBlockLabels = ' . wp_json_encode( self::$editor_block_labels ) . ';',
+                'before'
+            );
+        }
     }
     
     /**
@@ -80,6 +124,7 @@ class SCMB_Blocks {
         
         // Register ACF field group for this block FIRST
         $this->register_block_fields($block_slug, $module_id, $label, $fields);
+        $this->register_block_editor_label($block_slug, $label, $icon);
         
         // Register the block type
         acf_register_block_type([
@@ -104,6 +149,29 @@ class SCMB_Blocks {
                 $this->enqueue_block_assets($module_id);
             },
         ]);
+    }
+
+    /**
+     * Share block labels with the editor script.
+     *
+     * @param string $block_slug Block slug without the acf/ prefix.
+     * @param string $label      Block label.
+     * @param string $icon       Dashicon name.
+     * @return void
+     */
+    private function register_block_editor_label( $block_slug, $label, $icon ) {
+        $safe_block_slug = sanitize_title( $block_slug );
+
+        if ( empty( $safe_block_slug ) ) {
+            return;
+        }
+
+        self::$editor_block_labels[ 'acf/' . $safe_block_slug ] = [
+            'slug'  => $safe_block_slug,
+            'name'  => 'acf/' . $safe_block_slug,
+            'label' => wp_strip_all_tags( $label ),
+            'icon'  => sanitize_key( $icon ),
+        ];
     }
     
     /**
@@ -150,7 +218,7 @@ class SCMB_Blocks {
             
             // Special settings for Repeater
             if ($field['field_type'] === 'repeater') {
-                $acf_field['layout'] = 'block';
+                $acf_field['layout'] = 'row';
                 $acf_field['button_label'] = 'Add Item';
                 $acf_field['sub_fields'] = [];
 
@@ -202,6 +270,40 @@ class SCMB_Blocks {
                         
                         $acf_field['sub_fields'][] = $sub_field;
                     }
+                }
+
+                $compact_repeater_types = [
+                    'text',
+                    'email',
+                    'url',
+                    'number',
+                    'range',
+                    'select',
+                    'checkbox',
+                    'radio',
+                    'button_group',
+                    'true_false',
+                    'color_picker',
+                    'date_picker',
+                    'time_picker',
+                    'date_time_picker',
+                ];
+
+                $has_only_compact_sub_fields = ! empty( $acf_field['sub_fields'] );
+
+                foreach ( $acf_field['sub_fields'] as $sub_field ) {
+                    if ( empty( $sub_field['type'] ) || ! in_array( $sub_field['type'], $compact_repeater_types, true ) ) {
+                        $has_only_compact_sub_fields = false;
+                        break;
+                    }
+                }
+
+                if ( $has_only_compact_sub_fields && count( $acf_field['sub_fields'] ) <= 3 ) {
+                    $acf_field['layout'] = 'table';
+                }
+
+                if ( ! empty( $acf_field['sub_fields'][0]['key'] ) ) {
+                    $acf_field['collapsed'] = $acf_field['sub_fields'][0]['key'];
                 }
             }
             
