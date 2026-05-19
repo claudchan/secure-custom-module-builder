@@ -32,6 +32,10 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.11
+* Added select choices for top-level module fields using `value:Label` pairs separated by commas or new lines.
+* Added Allow Null support for top-level select module fields.
+
 ### 1.0.9
 * Added module preview thumbnail uploads for Gutenberg inserter previews.
 * Added export/import support for preview thumbnail attachment IDs and single-instance settings.

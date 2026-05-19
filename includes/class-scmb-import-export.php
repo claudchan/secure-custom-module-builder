@@ -485,6 +485,8 @@ class SCMB_Import_Export {
                 'field_label' => sanitize_text_field($field['field_label'] ?? ''),
                 'field_type' => in_array($field_type, $allowed_types, true) ? $field_type : 'text',
                 'field_default' => sanitize_text_field($field['field_default'] ?? ''),
+                'field_choices' => sanitize_textarea_field($field['field_choices'] ?? ''),
+                'field_allow_null' => !empty($field['field_allow_null']) ? 1 : 0,
                 'field_required' => !empty($field['field_required']) ? 1 : 0,
                 'field_sub_fields' => $this->normalize_sub_field_lines(sanitize_textarea_field($field['field_sub_fields'] ?? '')),
                 'field_repeater_max' => isset($field['field_repeater_max']) ? absint($field['field_repeater_max']) : '',

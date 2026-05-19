@@ -272,6 +272,13 @@ class SCMB_Blocks {
                 $acf_field['media_upload'] = 1;
                 $acf_field['delay'] = 0;
             }
+
+            if ($field['field_type'] === 'select') {
+                $acf_field['choices'] = $this->parse_select_choices( isset( $field['field_choices'] ) ? $field['field_choices'] : '' );
+                $acf_field['ui'] = 1;
+                $acf_field['return_format'] = 'value';
+                $acf_field['allow_null'] = ! empty( $field['field_allow_null'] ) ? 1 : 0;
+            }
             
             // Special settings for Repeater
             if ($field['field_type'] === 'repeater') {
@@ -569,7 +576,7 @@ class SCMB_Blocks {
      */
     private function parse_select_choices( $raw_choices ) {
         $choices = [];
-        $items   = array_filter( array_map( 'trim', explode( ',', (string) $raw_choices ) ) );
+        $items   = array_filter( array_map( 'trim', preg_split( '/[\r\n,]+/', (string) $raw_choices ) ) );
 
         foreach ( $items as $item ) {
             $parts = preg_split( '/[:=]/', $item, 2 );

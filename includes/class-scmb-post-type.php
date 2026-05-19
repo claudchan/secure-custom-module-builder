@@ -294,8 +294,47 @@ $(document).ready(function() {
                             'label' => __('Default Value', 'scmb'),
                             'name' => 'field_default',
                             'type' => 'text',
+                            'instructions' => __('For select fields, use one of the configured choice values.', 'scmb'),
                             'wrapper' => [
                                 'width' => '33',
+                            ],
+                        ],
+                        [
+                            'key' => 'field_field_choices',
+                            'label' => __('Select Choices', 'scmb'),
+                            'name' => 'field_choices',
+                            'type' => 'textarea',
+                            'instructions' => __('Enter choices as value:Label pairs, separated by commas or new lines. Example: primary:Primary, ghost:Ghost', 'scmb'),
+                            'placeholder' => "primary:Primary\nghost:Ghost\noutline:Outline",
+                            'rows' => 3,
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field' => 'field_field_type',
+                                        'operator' => '==',
+                                        'value' => 'select',
+                                    ],
+                                ],
+                            ],
+                        ],
+                        [
+                            'key' => 'field_field_allow_null',
+                            'label' => __('Allow Null', 'scmb'),
+                            'name' => 'field_allow_null',
+                            'type' => 'true_false',
+                            'instructions' => __('Allow users to leave this select field empty.', 'scmb'),
+                            'ui' => 1,
+                            'wrapper' => [
+                                'width' => '33',
+                            ],
+                            'conditional_logic' => [
+                                [
+                                    [
+                                        'field' => 'field_field_type',
+                                        'operator' => '==',
+                                        'value' => 'select',
+                                    ],
+                                ],
                             ],
                         ],
                         [
