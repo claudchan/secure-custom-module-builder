@@ -41,7 +41,7 @@
         
         console.log('On module edit screen');
 
-        initFieldNameNormalizer();
+        initSlugNormalizers();
         
         // HTML Editor
         var htmlField = $('[data-name="module_html"] textarea');
@@ -395,17 +395,35 @@
     }
 
     /**
-     * Keep module field names in lowercase snake_case while typing or pasting.
+     * Keep module keys and field names in their allowed formats.
      */
-    function initFieldNameNormalizer() {
-        if ($(document).data('scmb-field-normalizer-initialized')) {
+    function initSlugNormalizers() {
+        if ($(document).data('scmb-slug-normalizers-initialized')) {
             return;
         }
 
-        $(document).data('scmb-field-normalizer-initialized', true);
+        $(document).data('scmb-slug-normalizers-initialized', true);
 
         $(document)
-            .off('keyup.scmbFieldNames change.scmbFieldNames paste.scmbFieldNames blur.scmbFieldNames')
+            .off('input.scmbModuleKey keyup.scmbFieldNames change.scmbFieldNames paste.scmbFieldNames blur.scmbFieldNames change.scmbModuleKey paste.scmbModuleKey blur.scmbModuleKey blur.scmbModuleLabel blur.scmbFieldLabels')
+            .on('blur.scmbModuleLabel', getModuleLabelSelector(), function() {
+                fillModuleKeyFromLabel($(this));
+            })
+            .on('blur.scmbFieldLabels', '[data-name="field_label"] input', function() {
+                fillFieldNameFromLabel($(this));
+            })
+            .on('input.scmbModuleKey paste.scmbModuleKey', getModuleKeySelector(), function() {
+                normalizeInputValue($(this), normalizeModuleKey, {
+                    preserveSpaces: true,
+                    preserveTrailingHyphen: true
+                });
+            })
+            .on('change.scmbModuleKey blur.scmbModuleKey', getModuleKeySelector(), function() {
+                normalizeInputValue($(this), normalizeModuleKey, {
+                    preserveSpaces: false,
+                    preserveTrailingHyphen: false
+                });
+            })
             .on('keyup.scmbFieldNames paste.scmbFieldNames', '[data-name="field_name"] input', function() {
                 normalizeInputValue($(this), normalizeFieldName, {
                     preserveTrailingUnderscore: true
@@ -421,6 +439,52 @@
                     preserveTrailingUnderscore: false
                 });
             });
+    }
+
+    function getModuleKeySelector() {
+        return '[data-name="module_key"] input[type="text"], [data-key="field_module_key"] input[type="text"], input[name="acf[field_module_key]"]';
+    }
+
+    function getModuleLabelSelector() {
+        return '[data-name="module_label"] input[type="text"], [data-key="field_module_label"] input[type="text"], input[name="acf[field_module_label]"]';
+    }
+
+    function fillModuleKeyFromLabel(labelInput) {
+        setTimeout(function() {
+            var labelValue = $.trim(labelInput.val() || '');
+            var moduleKeyInput = $(getModuleKeySelector()).first();
+
+            if (!labelValue || !moduleKeyInput.length || $.trim(moduleKeyInput.val() || '')) {
+                return;
+            }
+
+            moduleKeyInput
+                .val(normalizeModuleKey(labelValue, {
+                    preserveSpaces: false,
+                    preserveTrailingHyphen: false
+                }))
+                .trigger('input')
+                .trigger('change');
+        }, 0);
+    }
+
+    function fillFieldNameFromLabel(labelInput) {
+        setTimeout(function() {
+            var labelValue = $.trim(labelInput.val() || '');
+            var row = labelInput.closest('.acf-row');
+            var fieldNameInput = row.find('[data-name="field_name"] input').first();
+
+            if (!labelValue || !fieldNameInput.length || $.trim(fieldNameInput.val() || '')) {
+                return;
+            }
+
+            fieldNameInput
+                .val(normalizeFieldName(labelValue, {
+                    preserveTrailingUnderscore: false
+                }))
+                .trigger('input')
+                .trigger('change');
+        }, 0);
     }
 
     function normalizeInputValue(input, normalizer, options) {
@@ -473,6 +537,30 @@
 
         if (normalized && !/^[a-z_]/.test(normalized)) {
             normalized = 'field_' + normalized;
+        }
+
+        return normalized;
+    }
+
+    function normalizeModuleKey(value, options) {
+        options = options || {};
+
+        var normalized = String(value)
+            .toLowerCase()
+            .replace(options.preserveSpaces ? /[^a-z0-9\-\s]+/g : /\s+/g, options.preserveSpaces ? '' : '-');
+
+        if (options.preserveSpaces) {
+            normalized = normalized.replace(/\s+/g, ' ');
+        } else {
+            normalized = normalized.replace(/[^a-z0-9-]+/g, '');
+        }
+
+        normalized = normalized
+            .replace(/-+/g, '-')
+            .replace(/^-+/g, '');
+
+        if (!options.preserveTrailingHyphen) {
+            normalized = normalized.replace(/-+$/g, '');
         }
 
         return normalized;

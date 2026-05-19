@@ -74,6 +74,14 @@ class SCMB_Post_Type {
             'title' => __('Module Configuration', 'scmb'),
             'fields' => [
                 [
+                    'key' => 'field_module_label',
+                    'label' => __('Module Label', 'scmb'),
+                    'name' => 'module_label',
+                    'type' => 'text',
+                    'instructions' => __('Label shown in block inserter', 'scmb'),
+                    'required' => 1,
+                ],
+                [
                     'key' => 'field_module_key',
                     'label' => __('Module Key', 'scmb'),
                     'name' => 'module_key',
@@ -81,14 +89,6 @@ class SCMB_Post_Type {
                     'instructions' => __('Stable internal key used for imports, exports, and Gutenberg block registration. Use lowercase letters, numbers, and hyphens only.', 'scmb'),
                     'required' => 0,
                     'placeholder' => 'hero-banner',
-                ],
-                [
-                    'key' => 'field_module_label',
-                    'label' => __('Module Label', 'scmb'),
-                    'name' => 'module_label',
-                    'type' => 'text',
-                    'instructions' => __('Label shown in block inserter', 'scmb'),
-                    'required' => 1,
                 ],
                 [
                     'key' => 'field_module_category',
@@ -247,22 +247,22 @@ $(document).ready(function() {
                     'layout' => 'block',
                     'sub_fields' => [
                         [
-                            'key' => 'field_field_name',
-                            'label' => __('Field Name', 'scmb'),
-                            'name' => 'field_name',
+                            'key' => 'field_field_label',
+                            'label' => __('Field Label', 'scmb'),
+                            'name' => 'field_label',
                             'type' => 'text',
-                            'instructions' => __('Use lowercase underscores only (e.g., title, hero_headline, hero_rotating_headline). Spaces, dashes, and pasted text are normalized automatically.', 'scmb'),
+                            'instructions' => __('Label shown in editor', 'scmb'),
                             'required' => 1,
                             'wrapper' => [
                                 'width' => '50',
                             ],
                         ],
                         [
-                            'key' => 'field_field_label',
-                            'label' => __('Field Label', 'scmb'),
-                            'name' => 'field_label',
+                            'key' => 'field_field_name',
+                            'label' => __('Field Name', 'scmb'),
+                            'name' => 'field_name',
                             'type' => 'text',
-                            'instructions' => __('Label shown in editor', 'scmb'),
+                            'instructions' => __('Use lowercase underscores only (e.g., title, hero_headline, hero_rotating_headline). Spaces, dashes, and pasted text are normalized automatically.', 'scmb'),
                             'required' => 1,
                             'wrapper' => [
                                 'width' => '50',
