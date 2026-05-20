@@ -279,9 +279,7 @@
             if (type === 'repeater') {
                 var subFields = parseRepeaterSubFields(subFieldsRaw);
                 var inner = subFields.length
-                    ? subFields.map(function(subField) {
-                        return '  <div class="' + escapeAttribute(subField.name) + '">{{' + subField.name + '}}</div>';
-                    }).join('\n')
+                    ? renderRepeaterSnippetFields(subFields, 2)
                     : '  {{sub_field_name}}';
 
                 return '{{#' + name + '}}\n' +
@@ -307,17 +305,93 @@
         }
 
         function parseRepeaterSubFields(raw) {
-            return raw.split(/\r?\n/)
+            var lines = String(raw || '').split(/\r?\n/)
                 .map(function(line) {
-                    var parts = line.split('|');
+                    var match = String(line).match(/^(\s*)(.*)$/);
+                    var text = match ? $.trim(match[2] || '') : $.trim(line || '');
+
+                    if (!text) {
+                        return null;
+                    }
+
                     return {
-                        name: normalizeFieldName(parts[0] || ''),
-                        label: $.trim(parts[1] || parts[0] || '')
+                        indent: getIndentSize(match ? match[1] || '' : ''),
+                        text: text
                     };
                 })
-                .filter(function(field) {
-                    return !!field.name;
-                });
+                .filter(Boolean);
+            var position = { index: 0 };
+
+            return parseRepeaterSubFieldLevel(lines, position, -1);
+        }
+
+        function parseRepeaterSubFieldLevel(lines, position, parentIndent) {
+            var fields = [];
+
+            while (position.index < lines.length) {
+                var line = lines[position.index];
+
+                if (line.indent <= parentIndent) {
+                    break;
+                }
+
+                var parts = line.text.split('|');
+                var name = normalizeFieldName(parts[0] || '');
+                var field = {
+                    name: name,
+                    label: $.trim(parts[1] || parts[0] || ''),
+                    type: $.trim(parts[2] || 'text'),
+                    children: []
+                };
+
+                position.index++;
+
+                if (!field.name) {
+                    continue;
+                }
+
+                if (field.type === 'repeater') {
+                    field.children = parseRepeaterSubFieldLevel(lines, position, line.indent);
+                } else {
+                    skipNestedSubFieldLines(lines, position, line.indent);
+                }
+
+                fields.push(field);
+            }
+
+            return fields;
+        }
+
+        function skipNestedSubFieldLines(lines, position, indent) {
+            while (position.index < lines.length && lines[position.index].indent > indent) {
+                position.index++;
+            }
+        }
+
+        function getIndentSize(indent) {
+            return String(indent || '').replace(/\t/g, '    ').length;
+        }
+
+        function renderRepeaterSnippetFields(fields, indentSize) {
+            var indent = repeatSpaces(indentSize);
+
+            return fields.map(function(field) {
+                if (field.type === 'repeater') {
+                    var childInner = field.children.length
+                        ? renderRepeaterSnippetFields(field.children, indentSize + 2)
+                        : repeatSpaces(indentSize + 2) + '{{sub_field_name}}';
+
+                    return indent + '{{#' + field.name + '}}\n' +
+                        childInner + '\n' +
+                        indent + '{{/' + field.name + '}}';
+                }
+
+                return indent + '<div class="' + escapeAttribute(field.name) + '">{{' + field.name + '}}</div>';
+            }).join('\n');
+        }
+
+        function repeatSpaces(count) {
+            return new Array(count + 1).join(' ');
         }
 
         function renderSnippetItem(field) {
@@ -405,7 +479,7 @@
         $(document).data('scmb-slug-normalizers-initialized', true);
 
         $(document)
-            .off('input.scmbModuleKey keyup.scmbFieldNames change.scmbFieldNames paste.scmbFieldNames blur.scmbFieldNames change.scmbModuleKey paste.scmbModuleKey blur.scmbModuleKey blur.scmbModuleLabel blur.scmbFieldLabels')
+            .off('input.scmbModuleKey keyup.scmbFieldNames change.scmbFieldNames paste.scmbFieldNames blur.scmbFieldNames keydown.scmbSubFieldIndent change.scmbModuleKey paste.scmbModuleKey blur.scmbModuleKey blur.scmbModuleLabel blur.scmbFieldLabels')
             .on('blur.scmbModuleLabel', getModuleLabelSelector(), function() {
                 fillModuleKeyFromLabel($(this));
             })
@@ -438,6 +512,9 @@
                 normalizeInputValue($(this), normalizeSubFieldLines, {
                     preserveTrailingUnderscore: false
                 });
+            })
+            .on('keydown.scmbSubFieldIndent', '[data-name="field_sub_fields"] textarea', function(e) {
+                handleSubFieldIndentKey(e, this);
             });
     }
 
@@ -513,13 +590,71 @@
             var pipeIndex = line.indexOf('|');
             var fieldName = pipeIndex === -1 ? line : line.slice(0, pipeIndex);
             var rest = pipeIndex === -1 ? '' : line.slice(pipeIndex);
+            var indentMatch = String(fieldName || '').match(/^(\s*)(.*)$/);
+            var indent = indentMatch ? indentMatch[1] || '' : '';
+            var name = indentMatch ? indentMatch[2] || '' : fieldName;
 
-            if (!$.trim(fieldName || '')) {
+            if (!$.trim(name || '')) {
                 return line;
             }
 
-            return normalizeFieldName(fieldName, options || {}) + rest;
+            return indent + normalizeFieldName(name, options || {}) + rest;
         }).join('\n');
+    }
+
+    function handleSubFieldIndentKey(e, textarea) {
+        if (e.key !== 'Tab') {
+            return;
+        }
+
+        e.preventDefault();
+
+        if (e.shiftKey) {
+            outdentTextareaSelection(textarea);
+            return;
+        }
+
+        indentTextareaSelection(textarea);
+    }
+
+    function indentTextareaSelection(textarea) {
+        var value = textarea.value || '';
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+        var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        var selection = value.slice(lineStart, end);
+        var replacement = selection.replace(/^/gm, '  ');
+
+        textarea.value = value.slice(0, lineStart) + replacement + value.slice(end);
+        textarea.selectionStart = start + 2;
+        textarea.selectionEnd = end + (replacement.length - selection.length);
+        $(textarea).trigger('input').trigger('change');
+    }
+
+    function outdentTextareaSelection(textarea) {
+        var value = textarea.value || '';
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+        var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        var selection = value.slice(lineStart, end);
+        var removedBeforeStart = 0;
+        var removedTotal = 0;
+        var replacement = selection.replace(/^( {1,2}|\t)/gm, function(match, offset) {
+            var removed = match.length;
+
+            removedTotal += removed;
+
+            if (lineStart + offset < start) {
+                removedBeforeStart += removed;
+            }
+
+            return '';
+        });
+
+        textarea.value = value.slice(0, lineStart) + replacement + value.slice(end);
+        textarea.selectionStart = Math.max(lineStart, start - removedBeforeStart);
+        textarea.selectionEnd = Math.max(textarea.selectionStart, end - removedTotal);
+        $(textarea).trigger('input').trigger('change');
     }
 
     function normalizeFieldName(value, options) {

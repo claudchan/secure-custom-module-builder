@@ -352,8 +352,8 @@ $(document).ready(function() {
                             'type'  => 'textarea',
                             'name'  => 'field_sub_fields',
                             'label' => __('Sub-fields (for Repeater)', 'scmb'),
-                            'instructions' => __('Enter sub-field names, one per line. Format: field_name|Field Label|field_type. For select fields, add choices as value:Label pairs. Add |allow_null as the fifth value to allow an empty selection.', 'scmb'),
-                            'placeholder' => "item_title|Item Title|text\nitem_content|Item Content|textarea\nbutton_style|Button Style|select|primary:Primary,ghost:Ghost\nbutton_target|Button Target|select|same:Same Tab,new:New Tab|allow_null",
+                            'instructions' => __('Enter sub-field names, one per line. Format: field_name|Field Label|field_type. Indent lines below a repeater sub-field to create nested repeater fields. For select fields, add choices as value:Label pairs. Add |allow_null as the fifth value to allow an empty selection. For nested repeaters, add |max=4 to limit rows.', 'scmb'),
+                            'placeholder' => "item_title|Item Title|text\nitem_content|Item Content|textarea\nitem_tags|Tags|repeater|max=4\n  tag_label|Tag Label|text\n  tag_url|Tag URL|url\nbutton_style|Button Style|select|primary:Primary,ghost:Ghost\nbutton_target|Button Target|select|same:Same Tab,new:New Tab|allow_null",
                             'rows' => 4,
                             'conditional_logic' => [
                                 [

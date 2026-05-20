@@ -511,7 +511,11 @@ class SCMB_Import_Export {
             $parts = explode('|', $line);
 
             if (!empty($parts[0])) {
-                $parts[0] = $this->normalize_field_name($parts[0]);
+                preg_match('/^(\s*)(.*)$/', $parts[0], $matches);
+
+                $indent = $matches[1] ?? '';
+                $name = $matches[2] ?? $parts[0];
+                $parts[0] = $indent . $this->normalize_field_name($name);
             }
 
             $normalized_lines[] = implode('|', $parts);

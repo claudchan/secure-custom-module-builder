@@ -32,6 +32,9 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.12
+* Added nested repeater sub-fields using indentation, for example `item_tags|Tags|repeater|max=4` followed by indented child fields.
+
 ### 1.0.11
 * Added select choices for top-level module fields using `value:Label` pairs separated by commas or new lines.
 * Added Allow Null support for top-level select module fields.

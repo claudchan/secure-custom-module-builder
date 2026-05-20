@@ -284,91 +284,18 @@ class SCMB_Blocks {
             if ($field['field_type'] === 'repeater') {
                 $acf_field['layout'] = 'row';
                 $acf_field['button_label'] = 'Add Item';
-                $acf_field['sub_fields'] = [];
+                $acf_field['sub_fields'] = $this->parse_repeater_sub_fields(
+                    isset( $field['field_sub_fields'] ) ? $field['field_sub_fields'] : '',
+                    $field_key
+                );
 
                 $repeater_max = isset( $field['field_repeater_max'] ) ? absint( $field['field_repeater_max'] ) : 0;
 
                 if ( $repeater_max > 0 ) {
                     $acf_field['max'] = $repeater_max;
                 }
-                
-                // Parse sub-fields from field_sub_fields
-                if (!empty($field['field_sub_fields'])) {
-                    $sub_fields_raw = explode("\n", $field['field_sub_fields']);
-                    
-                    foreach ($sub_fields_raw as $index => $sub_field_line) {
-                        $sub_field_line = trim($sub_field_line);
-                        if (empty($sub_field_line)) continue;
-                        
-                        // Parse format: field_name|Field Label|field_type
-                        $parts = explode('|', $sub_field_line);
-                        $sub_field_name = $this->normalize_template_field_name( $parts[0] );
 
-                        if ( empty( $sub_field_name ) ) {
-                            continue;
-                        }
-
-                        $sub_field_label = isset($parts[1]) ? trim($parts[1]) : ucfirst($sub_field_name);
-                        $sub_field_type = isset($parts[2]) ? trim($parts[2]) : 'text';
-                        
-                        $sub_field = [
-                            'key' => $field_key . '_' . $sub_field_name,
-                            'label' => $sub_field_label,
-                            'name' => $sub_field_name,
-                            'type' => $sub_field_type,
-                        ];
-                        
-                        // Special settings for wysiwyg sub-fields
-                        if ($sub_field_type === 'wysiwyg') {
-                            $sub_field['tabs'] = 'all';
-                            $sub_field['toolbar'] = 'full';
-                            $sub_field['media_upload'] = 1;
-                        }
-
-                        if ($sub_field_type === 'select') {
-                            $sub_field['choices'] = $this->parse_select_choices( isset($parts[3]) ? $parts[3] : '' );
-                            $sub_field['ui'] = 1;
-                            $sub_field['return_format'] = 'value';
-                            $sub_field['allow_null'] = $this->parse_boolean_option( isset($parts[4]) ? $parts[4] : false ) ? 1 : 0;
-                        }
-                        
-                        $acf_field['sub_fields'][] = $sub_field;
-                    }
-                }
-
-                $compact_repeater_types = [
-                    'text',
-                    'email',
-                    'url',
-                    'number',
-                    'range',
-                    'select',
-                    'checkbox',
-                    'radio',
-                    'button_group',
-                    'true_false',
-                    'color_picker',
-                    'date_picker',
-                    'time_picker',
-                    'date_time_picker',
-                ];
-
-                $has_only_compact_sub_fields = ! empty( $acf_field['sub_fields'] );
-
-                foreach ( $acf_field['sub_fields'] as $sub_field ) {
-                    if ( empty( $sub_field['type'] ) || ! in_array( $sub_field['type'], $compact_repeater_types, true ) ) {
-                        $has_only_compact_sub_fields = false;
-                        break;
-                    }
-                }
-
-                if ( $has_only_compact_sub_fields && count( $acf_field['sub_fields'] ) <= 3 ) {
-                    $acf_field['layout'] = 'table';
-                }
-
-                if ( ! empty( $acf_field['sub_fields'][0]['key'] ) ) {
-                    $acf_field['collapsed'] = $acf_field['sub_fields'][0]['key'];
-                }
+                $this->apply_repeater_display_settings( $acf_field );
             }
             
             $acf_fields[] = $acf_field;
@@ -616,6 +543,229 @@ class SCMB_Blocks {
     }
 
     /**
+     * Parse repeater sub-field lines into ACF fields.
+     *
+     * Nested repeaters are represented by indenting child lines below a
+     * repeater parent:
+     * item_tags|Tags|repeater|max=4
+     *   tag_label|Tag Label|text
+     *
+     * @param string $raw_lines  Raw sub-field configuration.
+     * @param string $parent_key Parent ACF field key.
+     * @return array
+     */
+    private function parse_repeater_sub_fields( $raw_lines, $parent_key ) {
+        $lines    = $this->parse_repeater_sub_field_lines( $raw_lines );
+        $position = 0;
+
+        return $this->parse_repeater_sub_field_level( $lines, $position, -1, $parent_key );
+    }
+
+    /**
+     * Convert raw repeater config text into parsed line metadata.
+     *
+     * @param string $raw_lines Raw sub-field configuration.
+     * @return array
+     */
+    private function parse_repeater_sub_field_lines( $raw_lines ) {
+        $raw_lines = preg_split( '/\r\n|\r|\n/', (string) $raw_lines );
+
+        if ( false === $raw_lines ) {
+            return [];
+        }
+
+        $lines = [];
+
+        foreach ( $raw_lines as $raw_line ) {
+            if ( '' === trim( $raw_line ) ) {
+                continue;
+            }
+
+            preg_match( '/^(\s*)(.*)$/', $raw_line, $matches );
+
+            $indent = strlen( str_replace( "\t", '    ', isset( $matches[1] ) ? $matches[1] : '' ) );
+            $text   = isset( $matches[2] ) ? trim( $matches[2] ) : '';
+
+            if ( '' === $text ) {
+                continue;
+            }
+
+            $lines[] = [
+                'indent' => $indent,
+                'text'   => $text,
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Recursively parse one indentation level of repeater sub-fields.
+     *
+     * @param array  $lines      Parsed line metadata.
+     * @param int    $position   Current parser position.
+     * @param int    $parent_indent Parent indentation level.
+     * @param string $parent_key Parent ACF field key.
+     * @return array
+     */
+    private function parse_repeater_sub_field_level( $lines, &$position, $parent_indent, $parent_key ) {
+        $sub_fields = [];
+        $total      = count( $lines );
+
+        while ( $position < $total ) {
+            $line = $lines[ $position ];
+
+            if ( $line['indent'] <= $parent_indent ) {
+                break;
+            }
+
+            $sub_field = $this->build_repeater_sub_field_from_line( $line['text'], $parent_key );
+            ++$position;
+
+            if ( empty( $sub_field ) ) {
+                continue;
+            }
+
+            if ( 'repeater' === $sub_field['type'] ) {
+                $sub_field['sub_fields'] = $this->parse_repeater_sub_field_level( $lines, $position, $line['indent'], $sub_field['key'] );
+                $this->apply_repeater_display_settings( $sub_field );
+            } else {
+                $this->skip_nested_repeater_lines( $lines, $position, $line['indent'] );
+            }
+
+            $sub_fields[] = $sub_field;
+        }
+
+        return $sub_fields;
+    }
+
+    /**
+     * Build one ACF sub-field from a config line.
+     *
+     * @param string $line       Config line without indentation.
+     * @param string $parent_key Parent ACF field key.
+     * @return array
+     */
+    private function build_repeater_sub_field_from_line( $line, $parent_key ) {
+        $parts          = array_map( 'trim', explode( '|', $line ) );
+        $sub_field_name = isset( $parts[0] ) ? $this->normalize_template_field_name( $parts[0] ) : '';
+
+        if ( empty( $sub_field_name ) ) {
+            return [];
+        }
+
+        $sub_field_type = isset( $parts[2] ) && '' !== $parts[2] ? $parts[2] : 'text';
+        $sub_field      = [
+            'key'   => $parent_key . '_' . $sub_field_name,
+            'label' => isset( $parts[1] ) && '' !== $parts[1] ? $parts[1] : ucfirst( $sub_field_name ),
+            'name'  => $sub_field_name,
+            'type'  => $sub_field_type,
+        ];
+
+        if ( 'wysiwyg' === $sub_field_type ) {
+            $sub_field['tabs']         = 'all';
+            $sub_field['toolbar']      = 'full';
+            $sub_field['media_upload'] = 1;
+        }
+
+        if ( 'select' === $sub_field_type ) {
+            $sub_field['choices']       = $this->parse_select_choices( isset( $parts[3] ) ? $parts[3] : '' );
+            $sub_field['ui']            = 1;
+            $sub_field['return_format'] = 'value';
+            $sub_field['allow_null']    = $this->parse_boolean_option( isset( $parts[4] ) ? $parts[4] : false ) ? 1 : 0;
+        }
+
+        if ( 'repeater' === $sub_field_type ) {
+            $sub_field['layout']       = 'row';
+            $sub_field['button_label'] = 'Add Item';
+
+            $max_rows = $this->parse_repeater_max_option( array_slice( $parts, 3 ) );
+
+            if ( $max_rows > 0 ) {
+                $sub_field['max'] = $max_rows;
+            }
+        }
+
+        return $sub_field;
+    }
+
+    /**
+     * Skip indented child lines under a non-repeater field.
+     *
+     * @param array $lines Parsed line metadata.
+     * @param int   $position Current parser position.
+     * @param int   $indent Parent indentation.
+     * @return void
+     */
+    private function skip_nested_repeater_lines( $lines, &$position, $indent ) {
+        $total = count( $lines );
+
+        while ( $position < $total && $lines[ $position ]['indent'] > $indent ) {
+            ++$position;
+        }
+    }
+
+    /**
+     * Parse max rows from nested repeater options.
+     *
+     * @param array $options Raw config options after the field type.
+     * @return int
+     */
+    private function parse_repeater_max_option( $options ) {
+        foreach ( $options as $option ) {
+            $option = trim( (string) $option );
+
+            if ( preg_match( '/^max\s*=\s*(\d+)$/', $option, $matches ) ) {
+                return absint( $matches[1] );
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Apply compact display settings to an ACF repeater field.
+     *
+     * @param array $repeater_field ACF repeater field.
+     * @return void
+     */
+    private function apply_repeater_display_settings( &$repeater_field ) {
+        $compact_repeater_types = [
+            'text',
+            'email',
+            'url',
+            'number',
+            'range',
+            'select',
+            'checkbox',
+            'radio',
+            'button_group',
+            'true_false',
+            'color_picker',
+            'date_picker',
+            'time_picker',
+            'date_time_picker',
+        ];
+
+        $has_only_compact_sub_fields = ! empty( $repeater_field['sub_fields'] );
+
+        foreach ( $repeater_field['sub_fields'] as $sub_field ) {
+            if ( empty( $sub_field['type'] ) || ! in_array( $sub_field['type'], $compact_repeater_types, true ) ) {
+                $has_only_compact_sub_fields = false;
+                break;
+            }
+        }
+
+        if ( $has_only_compact_sub_fields && count( $repeater_field['sub_fields'] ) <= 3 ) {
+            $repeater_field['layout'] = 'table';
+        }
+
+        if ( ! empty( $repeater_field['sub_fields'][0]['key'] ) ) {
+            $repeater_field['collapsed'] = $repeater_field['sub_fields'][0]['key'];
+        }
+    }
+
+    /**
      * Read an ACF field value, allowing older hyphenated saved names as fallbacks.
      *
      * @param string $field_name     Normalized field name.
@@ -689,8 +839,8 @@ class SCMB_Blocks {
             return [];
         }
 
-        $prepared_rows   = [];
-        $sub_field_types = $this->get_repeater_sub_field_types( $field );
+        $prepared_rows    = [];
+        $sub_field_schema = $this->get_repeater_sub_field_schema( $field );
 
         foreach ( $rows as $row ) {
             if ( ! is_array( $row ) ) {
@@ -706,8 +856,14 @@ class SCMB_Blocks {
                     continue;
                 }
 
-                $sub_field_type = isset( $sub_field_types[ $sub_field_name ] ) ? $sub_field_types[ $sub_field_name ] : 'text';
-                $prepared_row[ $sub_field_name ] = $this->prepare_sub_field_value( $sub_field_type, $sub_field_value );
+                $sub_field = isset( $sub_field_schema[ $sub_field_name ] )
+                    ? $sub_field_schema[ $sub_field_name ]
+                    : [
+                        'type'       => 'text',
+                        'sub_fields' => [],
+                    ];
+
+                $prepared_row[ $sub_field_name ] = $this->prepare_sub_field_value( $sub_field, $sub_field_value );
             }
 
             $prepared_rows[] = $prepared_row;
@@ -717,49 +873,56 @@ class SCMB_Blocks {
     }
 
     /**
-     * Get the configured types for repeater sub-fields.
+     * Get the configured schema for repeater sub-fields.
      *
      * @param array $field Repeater field definition.
      * @return array
      */
-    private function get_repeater_sub_field_types( $field ) {
-        $sub_field_types = [];
-
+    private function get_repeater_sub_field_schema( $field ) {
         if ( empty( $field['field_sub_fields'] ) ) {
-            return $sub_field_types;
+            return [];
         }
 
-        $sub_fields_raw = explode( "\n", $field['field_sub_fields'] );
+        return $this->build_repeater_sub_field_schema(
+            $this->parse_repeater_sub_fields( $field['field_sub_fields'], 'schema' )
+        );
+    }
 
-        foreach ( $sub_fields_raw as $sub_field_line ) {
-            $sub_field_line = trim( $sub_field_line );
+    /**
+     * Build a lookup schema from parsed ACF sub-fields.
+     *
+     * @param array $sub_fields Parsed ACF sub-fields.
+     * @return array
+     */
+    private function build_repeater_sub_field_schema( $sub_fields ) {
+        $schema = [];
 
-            if ( empty( $sub_field_line ) ) {
+        foreach ( $sub_fields as $sub_field ) {
+            if ( empty( $sub_field['name'] ) || empty( $sub_field['type'] ) ) {
                 continue;
             }
 
-            $parts          = array_map( 'trim', explode( '|', $sub_field_line ) );
-            $sub_field_name = isset( $parts[0] ) ? $this->normalize_template_field_name( $parts[0] ) : '';
-            $sub_field_type = isset( $parts[2] ) ? $parts[2] : 'text';
-
-            if ( empty( $sub_field_name ) ) {
-                continue;
-            }
-
-            $sub_field_types[ $sub_field_name ] = $sub_field_type;
+            $schema[ $sub_field['name'] ] = [
+                'type'       => $sub_field['type'],
+                'sub_fields' => ! empty( $sub_field['sub_fields'] )
+                    ? $this->build_repeater_sub_field_schema( $sub_field['sub_fields'] )
+                    : [],
+            ];
         }
 
-        return $sub_field_types;
+        return $schema;
     }
 
     /**
      * Prepare a repeater sub-field value for template rendering.
      *
-     * @param string $field_type Sub-field type.
-     * @param mixed  $value      Raw sub-field value.
+     * @param array $sub_field Sub-field schema.
+     * @param mixed $value     Raw sub-field value.
      * @return mixed
      */
-    private function prepare_sub_field_value( $field_type, $value ) {
+    private function prepare_sub_field_value( $sub_field, $value ) {
+        $field_type = isset( $sub_field['type'] ) ? $sub_field['type'] : 'text';
+
         switch ( $field_type ) {
             case 'wysiwyg':
                 return wp_kses_post( $value );
@@ -773,9 +936,59 @@ class SCMB_Blocks {
             case 'true_false':
                 return ! empty( $value );
 
+            case 'repeater':
+                return $this->prepare_repeater_rows_with_schema(
+                    $value,
+                    isset( $sub_field['sub_fields'] ) ? $sub_field['sub_fields'] : []
+                );
+
             default:
                 return is_scalar( $value ) ? esc_html( (string) $value ) : '';
         }
+    }
+
+    /**
+     * Prepare nested repeater rows using an already-built schema.
+     *
+     * @param mixed $rows   Raw repeater rows.
+     * @param array $schema Nested sub-field schema.
+     * @return array
+     */
+    private function prepare_repeater_rows_with_schema( $rows, $schema ) {
+        if ( ! is_array( $rows ) ) {
+            return [];
+        }
+
+        $prepared_rows = [];
+
+        foreach ( $rows as $row ) {
+            if ( ! is_array( $row ) ) {
+                continue;
+            }
+
+            $prepared_row = [];
+
+            foreach ( $row as $sub_field_name => $sub_field_value ) {
+                $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+
+                if ( empty( $sub_field_name ) ) {
+                    continue;
+                }
+
+                $sub_field = isset( $schema[ $sub_field_name ] )
+                    ? $schema[ $sub_field_name ]
+                    : [
+                        'type'       => 'text',
+                        'sub_fields' => [],
+                    ];
+
+                $prepared_row[ $sub_field_name ] = $this->prepare_sub_field_value( $sub_field, $sub_field_value );
+            }
+
+            $prepared_rows[] = $prepared_row;
+        }
+
+        return $prepared_rows;
     }
 
     /**
