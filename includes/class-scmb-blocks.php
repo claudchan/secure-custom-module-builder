@@ -468,10 +468,30 @@ class SCMB_Blocks {
             $value = ( false !== $value ) ? $value : '';
 
             $field['field_name'] = $field_name;
-            $context[ $field_name ] = $this->prepare_field_value( $field, $value );
+            $prepared_value = $this->prepare_field_value( $field, $value );
+            $context[ $field_name ] = $prepared_value;
+
+            if ( 'repeater' === $field['field_type'] ) {
+                $this->add_repeater_template_helpers( $context, $field_name, $prepared_value );
+            }
         }
 
         return $context;
+    }
+
+    /**
+     * Add count helpers for a repeater field.
+     *
+     * @param array  $context Rendering context.
+     * @param string $field_name Repeater field name.
+     * @param mixed  $rows Prepared repeater rows.
+     * @return void
+     */
+    private function add_repeater_template_helpers( &$context, $field_name, $rows ) {
+        $count = is_array( $rows ) ? count( $rows ) : 0;
+
+        $context[ $field_name . '__count' ]        = $count;
+        $context[ $field_name . '__has_multiple' ] = $count > 1;
     }
 
     /**
@@ -1003,6 +1023,7 @@ class SCMB_Blocks {
      * - {{#if title && content}} ... {{/if}}
      * - {{#if title || content}} ... {{/if}}
      * - {{#if !title}} ... {{/if}}
+     * - {{#if repeater_name__count > 1}} ... {{/if}}
      *
      * @param string $template Template markup.
      * @param array  $context  Rendering context.
@@ -1225,7 +1246,15 @@ class SCMB_Blocks {
      * @return array
      */
     private function build_child_template_context( $context, $row ) {
-        return array_merge( $context, $row );
+        $child_context = array_merge( $context, $row );
+
+        foreach ( $row as $field_name => $value ) {
+            if ( is_array( $value ) ) {
+                $this->add_repeater_template_helpers( $child_context, $field_name, $value );
+            }
+        }
+
+        return $child_context;
     }
 
     /**
@@ -1284,6 +1313,7 @@ class SCMB_Blocks {
      * - &&
      * - ||
      * - !
+     * - >, >=, <, <=, ==, !=
      *
      * Expressions are intentionally simple and field-based so the template
      * language remains predictable and safe to extend.
@@ -1353,6 +1383,12 @@ class SCMB_Blocks {
             $operand = ltrim( substr( $operand, 1 ) );
         }
 
+        $comparison_result = $this->evaluate_comparison_operand( $operand, $context );
+
+        if ( null !== $comparison_result ) {
+            return $negated ? ! $comparison_result : $comparison_result;
+        }
+
         if ( ! preg_match( '/^' . self::TEMPLATE_NAME_PATTERN . '$/', $operand ) ) {
             return false;
         }
@@ -1361,6 +1397,53 @@ class SCMB_Blocks {
         $result = $this->is_template_value_truthy( $value );
 
         return $negated ? ! $result : $result;
+    }
+
+    /**
+     * Evaluate a numeric comparison operand.
+     *
+     * @param string $operand Conditional operand.
+     * @param array  $context Rendering context.
+     * @return bool|null Null when the operand is not a comparison.
+     */
+    private function evaluate_comparison_operand( $operand, $context ) {
+        $pattern = '/^(' . self::TEMPLATE_NAME_PATTERN . ')\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)$/';
+
+        if ( ! preg_match( $pattern, $operand, $matches ) ) {
+            return null;
+        }
+
+        $left_value = $this->get_template_context_value( $context, $matches[1] );
+
+        if ( ! is_numeric( $left_value ) ) {
+            return false;
+        }
+
+        $left     = (float) $left_value;
+        $operator = $matches[2];
+        $right    = (float) $matches[3];
+
+        switch ( $operator ) {
+            case '>=':
+                return $left >= $right;
+
+            case '<=':
+                return $left <= $right;
+
+            case '==':
+                return $left === $right;
+
+            case '!=':
+                return $left !== $right;
+
+            case '>':
+                return $left > $right;
+
+            case '<':
+                return $left < $right;
+        }
+
+        return false;
     }
 
     /**

@@ -32,6 +32,10 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Changelog
 
+### 1.0.13
+* Added repeater count helpers for templates, including `repeater_name__count` and `repeater_name__has_multiple`.
+* Added numeric comparisons in template conditionals, such as `{{#if market_list__count > 1}}`.
+
 ### 1.0.12
 * Added nested repeater sub-fields using indentation, for example `item_tags|Tags|repeater|max=4` followed by indented child fields.
 
