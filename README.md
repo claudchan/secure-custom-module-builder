@@ -1,5 +1,14 @@
 # Secure Custom Module Builder (SCMB)
 
+Contributors: claudchan
+Tags: blocks, acf, gutenberg, module builder, custom blocks
+Requires at least: 6.0
+Tested up to: 7.0
+Requires PHP: 7.4
+Stable tag: 1.0.14
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
 Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
 
 ## Description
@@ -31,6 +40,11 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.14
+* Improved Plugin Check compatibility for private GitHub-distributed builds.
+* Updated text domain usage, nonce/input handling, import validation, and escaping annotations.
+* Switched module frontend JavaScript output to WordPress inline script APIs while preserving once-per-module execution.
 
 ### 1.0.13
 * Added repeater count helpers for templates, including `repeater_name__count` and `repeater_name__has_multiple`.

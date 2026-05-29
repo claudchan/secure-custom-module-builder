@@ -116,7 +116,7 @@ class SCMB_GitHub_Updater {
         $links[] = sprintf(
             '<a href="%1$s">%2$s</a>',
             esc_url( $url ),
-            esc_html__( 'Check for update', 'scmb' )
+            esc_html__( 'Check for update', 'secure-custom-module-builder' )
         );
 
         return $links;
@@ -127,7 +127,7 @@ class SCMB_GitHub_Updater {
      */
     public function handle_manual_update_check() {
         if ( ! current_user_can( 'update_plugins' ) ) {
-            wp_die( esc_html__( 'You do not have permission to check plugin updates.', 'scmb' ) );
+            wp_die( esc_html__( 'You do not have permission to check plugin updates.', 'secure-custom-module-builder' ) );
         }
 
         check_admin_referer( 'scmb_check_for_update', 'scmb_check_update_nonce' );
@@ -136,11 +136,14 @@ class SCMB_GitHub_Updater {
         wp_update_plugins();
 
         wp_safe_redirect(
-            add_query_arg(
-                array(
-                    'scmb_update_check' => 'complete',
+            wp_nonce_url(
+                add_query_arg(
+                    array(
+                        'scmb_update_check' => 'complete',
+                    ),
+                    admin_url( 'plugins.php' )
                 ),
-                admin_url( 'plugins.php' )
+                'scmb_update_check_notice'
             )
         );
         exit;
@@ -150,7 +153,10 @@ class SCMB_GitHub_Updater {
      * Display a notice after a manual update check.
      */
     public function show_manual_update_check_notice() {
-        if ( empty( $_GET['scmb_update_check'] ) || 'complete' !== $_GET['scmb_update_check'] ) {
+        $update_check = isset( $_GET['scmb_update_check'] ) ? sanitize_key( wp_unslash( $_GET['scmb_update_check'] ) ) : '';
+        $notice_nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+
+        if ( 'complete' !== $update_check || ! wp_verify_nonce( $notice_nonce, 'scmb_update_check_notice' ) ) {
             return;
         }
 
@@ -159,7 +165,7 @@ class SCMB_GitHub_Updater {
         }
 
         echo '<div class="notice notice-success is-dismissible"><p>';
-        echo esc_html__( 'SCMB update check complete. If a newer GitHub release is available, WordPress will show it in the plugin row.', 'scmb' );
+        echo esc_html__( 'SCMB update check complete. If a newer GitHub release is available, WordPress will show it in the plugin row.', 'secure-custom-module-builder' );
         echo '</p></div>';
     }
 
@@ -221,8 +227,8 @@ class SCMB_GitHub_Updater {
             'download_link' => ! empty( $release['package'] ) ? $release['package'] : '',
             'last_updated'  => ! empty( $release['published_at'] ) ? $release['published_at'] : '',
             'sections'      => array(
-                'description' => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'Latest release information is hosted on GitHub.', 'scmb' ),
-                'changelog'   => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'No changelog details were provided for the latest release.', 'scmb' ),
+                'description' => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'Latest release information is hosted on GitHub.', 'secure-custom-module-builder' ),
+                'changelog'   => ! empty( $release['body'] ) ? wpautop( wp_kses_post( $release['body'] ) ) : esc_html__( 'No changelog details were provided for the latest release.', 'secure-custom-module-builder' ),
             ),
         );
     }
@@ -265,7 +271,7 @@ class SCMB_GitHub_Updater {
         if ( ! $wp_filesystem->move( $current_destination, $proper_destination, true ) ) {
             return new WP_Error(
                 'scmb_updater_rename_failed',
-                __( 'Could not rename the GitHub release folder to the plugin slug.', 'scmb' )
+                __( 'Could not rename the GitHub release folder to the plugin slug.', 'secure-custom-module-builder' )
             );
         }
 

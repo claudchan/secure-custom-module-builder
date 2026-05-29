@@ -31,8 +31,8 @@ class SCMB_Import_Export {
     public function register_admin_page() {
         add_submenu_page(
             'edit.php?post_type=scmb_module',
-            __('Import / Export Modules', 'scmb'),
-            __('Import / Export', 'scmb'),
+            __('Import / Export Modules', 'secure-custom-module-builder'),
+            __('Import / Export', 'secure-custom-module-builder'),
             'manage_options',
             $this->page_slug,
             [$this, 'render_page']
@@ -44,17 +44,28 @@ class SCMB_Import_Export {
      */
     public function render_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to manage module imports.', 'scmb'));
+            wp_die(esc_html__('You do not have permission to manage module imports.', 'secure-custom-module-builder'));
         }
 
         $notice = null;
         $preview = null;
         $result = null;
+        $request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
 
-        if ('POST' === $_SERVER['REQUEST_METHOD']) {
-            if (isset($_POST['scmb_check_import'])) {
+        if ('POST' === $request_method) {
+            $has_import_nonce = isset($_POST['scmb_import_nonce'])
+                && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['scmb_import_nonce'])), 'scmb_import_modules');
+            $has_confirm_nonce = isset($_POST['scmb_confirm_nonce'])
+                && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['scmb_confirm_nonce'])), 'scmb_confirm_import');
+
+            if (!$has_import_nonce && !$has_confirm_nonce) {
+                $notice = [
+                    'type' => 'error',
+                    'message' => __('Security check failed. Please try again.', 'secure-custom-module-builder'),
+                ];
+            } elseif ($has_import_nonce && isset($_POST['scmb_check_import'])) {
                 [$notice, $preview] = $this->handle_import_preview();
-            } elseif (isset($_POST['scmb_confirm_import'])) {
+            } elseif ($has_confirm_nonce && isset($_POST['scmb_confirm_import'])) {
                 [$notice, $result] = $this->handle_import_confirm();
             }
         }
@@ -62,15 +73,15 @@ class SCMB_Import_Export {
         $modules = $this->get_all_modules();
         ?>
         <div class="wrap scmb-import-export-wrap">
-            <h1><?php esc_html_e('Module Builder: Import / Export', 'scmb'); ?></h1>
+            <h1><?php esc_html_e('Module Builder: Import / Export', 'secure-custom-module-builder'); ?></h1>
 
             <?php $this->render_notice($notice); ?>
             <?php $this->render_result($result); ?>
 
             <div class="scmb-migration-grid">
                 <div class="scmb-migration-panel">
-                    <h2><?php esc_html_e('Export Modules', 'scmb'); ?></h2>
-                    <p><?php esc_html_e('Download a portable SCMB JSON package that can be imported into another WordPress site.', 'scmb'); ?></p>
+                    <h2><?php esc_html_e('Export Modules', 'secure-custom-module-builder'); ?></h2>
+                    <p><?php esc_html_e('Download a portable SCMB JSON package that can be imported into another WordPress site.', 'secure-custom-module-builder'); ?></p>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <input type="hidden" name="action" value="scmb_export_modules">
@@ -78,17 +89,17 @@ class SCMB_Import_Export {
 
                         <table class="form-table" role="presentation">
                             <tr>
-                                <th scope="row"><?php esc_html_e('Modules', 'scmb'); ?></th>
+                                <th scope="row"><?php esc_html_e('Modules', 'secure-custom-module-builder'); ?></th>
                                 <td>
                                     <fieldset>
-                                        <label><input type="radio" name="module_scope" value="active" checked> <?php esc_html_e('All active modules', 'scmb'); ?></label><br>
-                                        <label><input type="radio" name="module_scope" value="all"> <?php esc_html_e('All modules', 'scmb'); ?></label><br>
-                                        <label><input type="radio" name="module_scope" value="specific"> <?php esc_html_e('Choose specific modules', 'scmb'); ?></label>
+                                        <label><input type="radio" name="module_scope" value="active" checked> <?php esc_html_e('All active modules', 'secure-custom-module-builder'); ?></label><br>
+                                        <label><input type="radio" name="module_scope" value="all"> <?php esc_html_e('All modules', 'secure-custom-module-builder'); ?></label><br>
+                                        <label><input type="radio" name="module_scope" value="specific"> <?php esc_html_e('Choose specific modules', 'secure-custom-module-builder'); ?></label>
                                     </fieldset>
                                 </td>
                             </tr>
                             <tr>
-                                <th scope="row"><?php esc_html_e('Specific Modules', 'scmb'); ?></th>
+                                <th scope="row"><?php esc_html_e('Specific Modules', 'secure-custom-module-builder'); ?></th>
                                 <td>
                                     <select name="module_ids[]" multiple size="8" class="scmb-module-select">
                                         <?php foreach ($modules as $module) : ?>
@@ -97,41 +108,41 @@ class SCMB_Import_Export {
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <p class="description"><?php esc_html_e('Used only when "Choose specific modules" is selected.', 'scmb'); ?></p>
+                                    <p class="description"><?php esc_html_e('Used only when "Choose specific modules" is selected.', 'secure-custom-module-builder'); ?></p>
                                 </td>
                             </tr>
                         </table>
 
-                        <?php submit_button(__('Download Export File', 'scmb'), 'primary', 'submit', false); ?>
+                        <?php submit_button(__('Download Export File', 'secure-custom-module-builder'), 'primary', 'submit', false); ?>
                     </form>
                 </div>
 
                 <div class="scmb-migration-panel">
-                    <h2><?php esc_html_e('Import Modules', 'scmb'); ?></h2>
-                    <p><?php esc_html_e('Upload an SCMB JSON package, review the preview, then confirm the import.', 'scmb'); ?></p>
+                    <h2><?php esc_html_e('Import Modules', 'secure-custom-module-builder'); ?></h2>
+                    <p><?php esc_html_e('Upload an SCMB JSON package, review the preview, then confirm the import.', 'secure-custom-module-builder'); ?></p>
 
                     <form method="post" enctype="multipart/form-data">
                         <?php wp_nonce_field('scmb_import_modules', 'scmb_import_nonce'); ?>
 
                         <table class="form-table" role="presentation">
                             <tr>
-                                <th scope="row"><label for="scmb_import_file"><?php esc_html_e('Package File', 'scmb'); ?></label></th>
+                                <th scope="row"><label for="scmb_import_file"><?php esc_html_e('Package File', 'secure-custom-module-builder'); ?></label></th>
                                 <td><input type="file" id="scmb_import_file" name="scmb_import_file" accept="application/json,.json" required></td>
                             </tr>
                             <tr>
-                                <th scope="row"><?php esc_html_e('Import Mode', 'scmb'); ?></th>
+                                <th scope="row"><?php esc_html_e('Import Mode', 'secure-custom-module-builder'); ?></th>
                                 <td>
                                     <select name="import_mode">
-                                        <option value="update_matching"><?php esc_html_e('Update matching modules and create new modules', 'scmb'); ?></option>
-                                        <option value="create_new"><?php esc_html_e('Create new modules only', 'scmb'); ?></option>
-                                        <option value="replace_matching"><?php esc_html_e('Replace matching modules', 'scmb'); ?></option>
+                                        <option value="update_matching"><?php esc_html_e('Update matching modules and create new modules', 'secure-custom-module-builder'); ?></option>
+                                        <option value="create_new"><?php esc_html_e('Create new modules only', 'secure-custom-module-builder'); ?></option>
+                                        <option value="replace_matching"><?php esc_html_e('Replace matching modules', 'secure-custom-module-builder'); ?></option>
                                     </select>
-                                    <p class="description"><?php esc_html_e('Updates match by stable module key. Replace mode also falls back to an exact module title match when the key is different or missing.', 'scmb'); ?></p>
+                                    <p class="description"><?php esc_html_e('Updates match by stable module key. Replace mode also falls back to an exact module title match when the key is different or missing.', 'secure-custom-module-builder'); ?></p>
                                 </td>
                             </tr>
                         </table>
 
-                        <?php submit_button(__('Check Import', 'scmb'), 'primary', 'scmb_check_import', false); ?>
+                        <?php submit_button(__('Check Import', 'secure-custom-module-builder'), 'primary', 'scmb_check_import', false); ?>
                     </form>
 
                     <?php $this->render_preview($preview); ?>
@@ -181,7 +192,7 @@ class SCMB_Import_Export {
      */
     public function handle_export() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('You do not have permission to export modules.', 'scmb'));
+            wp_die(esc_html__('You do not have permission to export modules.', 'secure-custom-module-builder'));
         }
 
         check_admin_referer('scmb_export_modules', 'scmb_export_nonce');
@@ -196,12 +207,13 @@ class SCMB_Import_Export {
         $json = wp_json_encode($package, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
         if (false === $json) {
-            wp_die(esc_html__('Could not encode the export package.', 'scmb'));
+            wp_die(esc_html__('Could not encode the export package.', 'secure-custom-module-builder'));
         }
 
         nocache_headers();
         header('Content-Type: application/json; charset=utf-8');
         header('Content-Disposition: attachment; filename=scmb-modules-' . gmdate('Y-m-d-His') . '.json');
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON download is generated by wp_json_encode() and sent with an application/json content type.
         echo $json;
         exit;
     }
@@ -214,21 +226,47 @@ class SCMB_Import_Export {
     private function handle_import_preview() {
         check_admin_referer('scmb_import_modules', 'scmb_import_nonce');
 
-        if (empty($_FILES['scmb_import_file']) || !isset($_FILES['scmb_import_file']['tmp_name'])) {
-            return [['type' => 'error', 'message' => __('No import file was uploaded.', 'scmb')], null];
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload array is unslashed and sanitized immediately before use.
+        $file = isset($_FILES['scmb_import_file']) && is_array($_FILES['scmb_import_file'])
+            ? array_map('sanitize_text_field', wp_unslash($_FILES['scmb_import_file']))
+            : [];
+
+        if (empty($file) || !isset($file['tmp_name'])) {
+            return [['type' => 'error', 'message' => __('No import file was uploaded.', 'secure-custom-module-builder')], null];
         }
 
-        $file = $_FILES['scmb_import_file'];
+        $tmp_name = isset($file['tmp_name']) ? $file['tmp_name'] : '';
+        $file_name = isset($file['name']) ? sanitize_file_name($file['name']) : '';
 
         if (!empty($file['error'])) {
-            return [['type' => 'error', 'message' => __('The import file could not be uploaded.', 'scmb')], null];
+            return [['type' => 'error', 'message' => __('The import file could not be uploaded.', 'secure-custom-module-builder')], null];
         }
 
-        $contents = file_get_contents($file['tmp_name']);
+        if (empty($tmp_name) || !is_uploaded_file($tmp_name)) {
+            return [['type' => 'error', 'message' => __('The import file could not be read.', 'secure-custom-module-builder')], null];
+        }
+
+        $file_type = wp_check_filetype(
+            $file_name,
+            [
+                'json' => 'application/json',
+            ]
+        );
+
+        if ('json' !== $file_type['ext'] || 'application/json' !== $file_type['type']) {
+            return [['type' => 'error', 'message' => __('Please upload a valid JSON package file.', 'secure-custom-module-builder')], null];
+        }
+
+        $contents = file_get_contents($tmp_name);
+
+        if (false === $contents) {
+            return [['type' => 'error', 'message' => __('The import file could not be read.', 'secure-custom-module-builder')], null];
+        }
+
         $package = json_decode($contents, true);
 
         if (!is_array($package) || empty($package['modules']) || !is_array($package['modules'])) {
-            return [['type' => 'error', 'message' => __('The selected file is not a valid SCMB package.', 'scmb')], null];
+            return [['type' => 'error', 'message' => __('The selected file is not a valid SCMB package.', 'secure-custom-module-builder')], null];
         }
 
         $mode = isset($_POST['import_mode']) ? sanitize_key(wp_unslash($_POST['import_mode'])) : 'update_matching';
@@ -243,7 +281,7 @@ class SCMB_Import_Export {
 
         $preview['token'] = $token;
 
-        return [['type' => 'success', 'message' => __('Import check complete. Review the preview before importing.', 'scmb')], $preview];
+        return [['type' => 'success', 'message' => __('Import check complete. Review the preview before importing.', 'secure-custom-module-builder')], $preview];
     }
 
     /**
@@ -258,13 +296,13 @@ class SCMB_Import_Export {
         $payload = get_transient($this->get_import_transient_key($token));
 
         if (empty($payload['package']) || empty($payload['mode'])) {
-            return [['type' => 'error', 'message' => __('The import preview expired. Upload the package again.', 'scmb')], null];
+            return [['type' => 'error', 'message' => __('The import preview expired. Upload the package again.', 'secure-custom-module-builder')], null];
         }
 
         delete_transient($this->get_import_transient_key($token));
         $result = $this->import_package($payload['package'], $payload['mode']);
 
-        return [['type' => 'success', 'message' => __('Import finished.', 'scmb')], $result];
+        return [['type' => 'success', 'message' => __('Import finished.', 'secure-custom-module-builder')], $result];
     }
 
     /**
@@ -348,14 +386,16 @@ class SCMB_Import_Export {
 
             if (!$existing_id && !empty($module['title']) && $this->find_module_by_title($module['title'])) {
                 $preview['warnings'][] = sprintf(
-                    __('A module named "%s" already exists with a different key. It will not be overwritten.', 'scmb'),
+                    /* translators: %s: Module title. */
+                    __('A module named "%s" already exists with a different key. It will not be overwritten.', 'secure-custom-module-builder'),
                     $module['title']
                 );
             }
 
             if ($existing_id && 'title' === $match['matched_by']) {
                 $preview['warnings'][] = sprintf(
-                    __('A module named "%s" has a different key. Replace mode will overwrite it and set its key to "%s".', 'scmb'),
+                    /* translators: 1: Module title, 2: Module key. */
+                    __('A module named "%1$s" has a different key. Replace mode will overwrite it and set its key to "%2$s".', 'secure-custom-module-builder'),
                     $module['title'],
                     $module_key
                 );
@@ -385,7 +425,7 @@ class SCMB_Import_Export {
 
             if (empty($module_key) || empty($module['title'])) {
                 $result['skipped']++;
-                $result['errors'][] = __('A module was skipped because it is missing a title or module key.', 'scmb');
+                $result['errors'][] = __('A module was skipped because it is missing a title or module key.', 'secure-custom-module-builder');
                 continue;
             }
 
@@ -557,16 +597,40 @@ class SCMB_Import_Export {
         }
         ?>
         <div class="scmb-import-preview">
-            <h3><?php esc_html_e('Import Preview', 'scmb'); ?></h3>
+            <h3><?php esc_html_e('Import Preview', 'secure-custom-module-builder'); ?></h3>
             <ul>
-                <li><?php printf(esc_html__('%d modules found', 'scmb'), (int) $preview['total']); ?></li>
-                <li><?php printf(esc_html__('%d will be created', 'scmb'), (int) $preview['create']); ?></li>
-                <li><?php printf(esc_html__('%d will be updated', 'scmb'), (int) $preview['update']); ?></li>
-                <li><?php printf(esc_html__('%d duplicate copies will be created', 'scmb'), (int) $preview['duplicate']); ?></li>
+                <li><?php
+                    printf(
+                        /* translators: %d: Number of modules. */
+                        esc_html__('%d modules found', 'secure-custom-module-builder'),
+                        (int) $preview['total']
+                    );
+                ?></li>
+                <li><?php
+                    printf(
+                        /* translators: %d: Number of modules. */
+                        esc_html__('%d will be created', 'secure-custom-module-builder'),
+                        (int) $preview['create']
+                    );
+                ?></li>
+                <li><?php
+                    printf(
+                        /* translators: %d: Number of modules. */
+                        esc_html__('%d will be updated', 'secure-custom-module-builder'),
+                        (int) $preview['update']
+                    );
+                ?></li>
+                <li><?php
+                    printf(
+                        /* translators: %d: Number of modules. */
+                        esc_html__('%d duplicate copies will be created', 'secure-custom-module-builder'),
+                        (int) $preview['duplicate']
+                    );
+                ?></li>
             </ul>
 
             <?php if (!empty($preview['warnings'])) : ?>
-                <h4><?php esc_html_e('Warnings', 'scmb'); ?></h4>
+                <h4><?php esc_html_e('Warnings', 'secure-custom-module-builder'); ?></h4>
                 <ul>
                     <?php foreach ($preview['warnings'] as $warning) : ?>
                         <li><?php echo esc_html($warning); ?></li>
@@ -577,7 +641,7 @@ class SCMB_Import_Export {
             <form method="post">
                 <?php wp_nonce_field('scmb_confirm_import', 'scmb_confirm_nonce'); ?>
                 <input type="hidden" name="import_token" value="<?php echo esc_attr($preview['token']); ?>">
-                <?php submit_button(__('Import Modules', 'scmb'), 'primary', 'scmb_confirm_import', false); ?>
+                <?php submit_button(__('Import Modules', 'secure-custom-module-builder'), 'primary', 'scmb_confirm_import', false); ?>
             </form>
         </div>
         <?php
@@ -599,7 +663,8 @@ class SCMB_Import_Export {
 
         echo '<div class="notice notice-info"><p>';
         printf(
-            esc_html__('Created: %1$d. Updated: %2$d. Skipped: %3$d.', 'scmb'),
+            /* translators: 1: Created module count, 2: Updated module count, 3: Skipped module count. */
+            esc_html__('Created: %1$d. Updated: %2$d. Skipped: %3$d.', 'secure-custom-module-builder'),
             (int) $result['created'],
             (int) $result['updated'],
             (int) $result['skipped']
@@ -710,8 +775,15 @@ class SCMB_Import_Export {
     }
 
     private function find_module_by_title($title) {
-        $page = get_page_by_title($title, OBJECT, 'scmb_module');
-        return $page ? (int) $page->ID : 0;
+        $posts = get_posts([
+            'post_type' => 'scmb_module',
+            'post_status' => 'any',
+            'posts_per_page' => 1,
+            'fields' => 'ids',
+            'title' => sanitize_text_field($title),
+        ]);
+
+        return !empty($posts) ? (int) $posts[0] : 0;
     }
 
     private function get_module_value($post_id, $field_name) {

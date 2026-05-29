@@ -4,11 +4,11 @@
  * Plugin URI: https://github.com/claudchan/secure-custom-module-builder
  * Update URI: https://github.com/claudchan/secure-custom-module-builder
  * Description: Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
- * Version: 1.0.13
+ * Version: 1.0.14
  * Author: Claud Chan
  * Author URI: https://github.com/claudchan
  * License: GPL v2 or later
- * Text Domain: scmb
+ * Text Domain: secure-custom-module-builder
  * Requires at least: 6.0
  * Requires PHP: 7.4
  */
@@ -43,10 +43,6 @@ function scmb_check_for_acf_dependency() {
         // Add a notice to the admin dashboard.
         add_action( 'admin_notices', 'scmb_acf_missing_notice' );
 
-        // Hide the "Plugin activated" notice.
-        if ( isset( $_GET['activate'] ) ) {
-            unset( $_GET['activate'] );
-        }
     }
 }
 add_action( 'admin_init', 'scmb_check_for_acf_dependency' );
@@ -56,26 +52,23 @@ add_action( 'admin_init', 'scmb_check_for_acf_dependency' );
  * Displays an admin notice if ACF is not active.
  */
 function scmb_acf_missing_notice() {
-    $plugin_name = '<strong>' . esc_html__( 'Secure Custom Module Builder', 'scmb' ) . '</strong>';
+    $plugin_name = '<strong>' . esc_html__( 'Secure Custom Module Builder', 'secure-custom-module-builder' ) . '</strong>';
     $acf_link    = esc_url( 'https://wordpress.org/plugins/advanced-custom-fields/' );
+    $message     = sprintf(
+        /* translators: 1: Plugin name, 2: ACF plugin link. */
+        esc_html__( '%1$s has been deactivated. It requires the %2$s plugin to be installed and activated.', 'secure-custom-module-builder' ),
+        $plugin_name,
+        '<a href="' . $acf_link . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Advanced Custom Fields or Secure Custom Fields', 'secure-custom-module-builder' ) . '</a>'
+    );
     ?>
     <div class="notice notice-error is-dismissible">
-        <p>
-            <?php
-            printf(
-                /* translators: 1: Plugin name, 2: ACF link */
-                esc_html__( '%1$s has been deactivated. It requires the %2$s plugin to be installed and activated.', 'scmb' ),
-                $plugin_name,
-                '<a href="' . $acf_link . '" target="_blank">' . esc_html__( 'Advanced Custom Fields or Secure Custom Fields', 'scmb' ) . '</a>'
-            );
-            ?>
-        </p>
+        <p><?php echo wp_kses( $message, [ 'strong' => [], 'a' => [ 'href' => true, 'target' => true, 'rel' => true ] ] ); ?></p>
     </div>
     <?php
 }
 
 // Define plugin constants
-define('SCMB_VERSION', '1.0.13');
+define('SCMB_VERSION', '1.0.14');
 define('SCMB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCMB_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCMB_PLUGIN_FILE', __FILE__);
@@ -138,8 +131,6 @@ class Secure_Custom_Module_Builder {
         SCMB_Blocks::get_instance();
         SCMB_Renderer::get_instance();
         
-        // Load text domain
-        load_plugin_textdomain('scmb', false, dirname(plugin_basename(__FILE__)) . '/languages');
     }
 
     /**

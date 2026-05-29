@@ -141,8 +141,11 @@ class SCMB_Admin {
     public function admin_footer_text($text) {
         global $post_type;
         if ($post_type === 'scmb_module') {
-            $text = sprintf(
-                __('Thank you for using <strong>Secure Custom Module Builder</strong>!', 'scmb')
+            $text = wp_kses(
+                __('Thank you for using <strong>Secure Custom Module Builder</strong>!', 'secure-custom-module-builder'),
+                [
+                    'strong' => [],
+                ]
             );
         }
         return $text;

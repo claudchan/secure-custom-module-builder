@@ -380,7 +380,7 @@ class SCMB_Blocks {
                         <p>%s</p>
                     </div>',
                     esc_html( get_the_title( $module_id ) ),
-                    esc_html__( 'No HTML template defined for this module.', 'scmb' )
+                    esc_html__( 'No HTML template defined for this module.', 'secure-custom-module-builder' )
                 )
             );
             return;
@@ -1514,7 +1514,7 @@ class SCMB_Blocks {
             $handle = 'scmb-module-' . $module_id;
             
             // Register a dummy style to attach inline CSS
-            wp_register_style($handle, false);
+            wp_register_style($handle, false, [], SCMB_VERSION);
             wp_enqueue_style($handle);
             
             // Sanitize CSS to prevent CSS injection
@@ -1560,11 +1560,11 @@ class SCMB_Blocks {
                 $cleaned_js
             );
             
-            // Output script tag directly in footer to ensure it executes
-            // Use wp_footer hook to add script at the very end of the page
-            add_action('wp_footer', function() use ($wrapped_js) {
-                echo '<script type="text/javascript">' . "\n" . $wrapped_js . "\n" . '</script>' . "\n";
-            }, 999);
+            $script_handle = 'scmb-module-' . $module_id . '-script';
+
+            wp_register_script($script_handle, false, [], SCMB_VERSION, true);
+            wp_enqueue_script($script_handle);
+            wp_add_inline_script($script_handle, $wrapped_js, 'after');
         }
     }
     
@@ -1600,7 +1600,6 @@ class SCMB_Blocks {
     private function sanitize_javascript($js) {
         // Check if user has capability to execute code
         if (!current_user_can('manage_options')) {
-            error_log('SCMB: Non-admin attempted to use custom JavaScript');
             return '';
         }
         
@@ -1619,7 +1618,6 @@ class SCMB_Blocks {
         
         foreach ($dangerous_patterns as $pattern) {
             if (preg_match($pattern, $js)) {
-                error_log('SCMB Security: Dangerous pattern detected in module JavaScript: ' . $pattern);
                 return '';
             }
         }
@@ -1627,7 +1625,6 @@ class SCMB_Blocks {
         // Additional safety check: ensure code is valid JavaScript
         // This is a basic check - full validation would require a JS parser
         if (!$this->is_valid_javascript_syntax($js)) {
-            error_log('SCMB: Invalid JavaScript syntax detected');
             return '';
         }
         
