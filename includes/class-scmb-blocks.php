@@ -441,6 +441,160 @@ class SCMB_Blocks {
             'data-context' => true,
         ];
 
+        $allowed_html['form'] = [
+            'id'                => true,
+            'class'             => true,
+            'style'             => true,
+            'action'            => true,
+            'method'            => true,
+            'name'              => true,
+            'role'              => true,
+            'aria-label'        => true,
+            'aria-hidden'       => true,
+            'autocomplete'      => true,
+            'novalidate'        => true,
+            'data-contact-form' => true,
+            'data-module'       => true,
+            'data-scmb'         => true,
+            'data-context'      => true,
+        ];
+
+        $allowed_html['label'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'for'         => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+        ];
+
+        $allowed_html['input'] = [
+            'id'             => true,
+            'class'          => true,
+            'style'          => true,
+            'type'           => true,
+            'name'           => true,
+            'value'          => true,
+            'placeholder'    => true,
+            'required'       => true,
+            'disabled'       => true,
+            'readonly'       => true,
+            'checked'        => true,
+            'autocomplete'   => true,
+            'tabindex'       => true,
+            'list'           => true,
+            'aria-label'     => true,
+            'aria-hidden'    => true,
+            'aria-invalid'   => true,
+            'aria-describedby' => true,
+            'min'            => true,
+            'max'            => true,
+            'step'           => true,
+            'pattern'        => true,
+            'maxlength'      => true,
+            'data-module'    => true,
+            'data-scmb'      => true,
+            'data-context'   => true,
+        ];
+
+        $allowed_html['select'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'name'        => true,
+            'required'    => true,
+            'disabled'    => true,
+            'multiple'    => true,
+            'autocomplete' => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+            'data-module' => true,
+            'data-scmb'   => true,
+            'data-context' => true,
+        ];
+
+        $allowed_html['option'] = [
+            'value'    => true,
+            'label'    => true,
+            'selected' => true,
+            'disabled' => true,
+        ];
+
+        $allowed_html['optgroup'] = [
+            'label'    => true,
+            'disabled' => true,
+        ];
+
+        $allowed_html['datalist'] = [
+            'id'    => true,
+            'class' => true,
+            'style' => true,
+        ];
+
+        $allowed_html['fieldset'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'name'        => true,
+            'disabled'    => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+        ];
+
+        $allowed_html['legend'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+        ];
+
+        $allowed_html['output'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'name'        => true,
+            'for'         => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+        ];
+
+        $allowed_html['textarea'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'name'        => true,
+            'placeholder' => true,
+            'required'    => true,
+            'disabled'    => true,
+            'readonly'    => true,
+            'rows'        => true,
+            'cols'        => true,
+            'maxlength'   => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+            'aria-invalid' => true,
+            'aria-describedby' => true,
+            'data-module' => true,
+            'data-scmb'   => true,
+            'data-context' => true,
+        ];
+
+        $allowed_html['button'] = [
+            'id'          => true,
+            'class'       => true,
+            'style'       => true,
+            'type'        => true,
+            'name'        => true,
+            'value'       => true,
+            'disabled'    => true,
+            'aria-label'  => true,
+            'aria-hidden' => true,
+            'data-module' => true,
+            'data-scmb'   => true,
+            'data-context' => true,
+        ];
+
         return $allowed_html;
     }
 
@@ -563,6 +717,25 @@ class SCMB_Blocks {
     }
 
     /**
+     * Check whether a pipe-delimited repeater sub-field option exists.
+     *
+     * @param array  $options     Raw option parts.
+     * @param string $option_name Option name to find.
+     * @return bool
+     */
+    private function has_repeater_sub_field_option( $options, $option_name ) {
+        $option_name = strtolower( trim( (string) $option_name ) );
+
+        foreach ( $options as $option ) {
+            if ( strtolower( trim( (string) $option ) ) === $option_name ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Parse repeater sub-field lines into ACF fields.
      *
      * Nested repeaters are represented by indenting child lines below a
@@ -675,11 +848,13 @@ class SCMB_Blocks {
         }
 
         $sub_field_type = isset( $parts[2] ) && '' !== $parts[2] ? $parts[2] : 'text';
-        $sub_field      = [
-            'key'   => $parent_key . '_' . $sub_field_name,
-            'label' => isset( $parts[1] ) && '' !== $parts[1] ? $parts[1] : ucfirst( $sub_field_name ),
-            'name'  => $sub_field_name,
-            'type'  => $sub_field_type,
+        $option_parts    = 'select' === $sub_field_type ? array_slice( $parts, 4 ) : array_slice( $parts, 3 );
+        $sub_field       = [
+            'key'      => $parent_key . '_' . $sub_field_name,
+            'label'    => isset( $parts[1] ) && '' !== $parts[1] ? $parts[1] : ucfirst( $sub_field_name ),
+            'name'     => $sub_field_name,
+            'type'     => $sub_field_type,
+            'required' => $this->has_repeater_sub_field_option( $option_parts, 'required' ) ? 1 : 0,
         ];
 
         if ( 'wysiwyg' === $sub_field_type ) {
@@ -692,7 +867,7 @@ class SCMB_Blocks {
             $sub_field['choices']       = $this->parse_select_choices( isset( $parts[3] ) ? $parts[3] : '' );
             $sub_field['ui']            = 1;
             $sub_field['return_format'] = 'value';
-            $sub_field['allow_null']    = $this->parse_boolean_option( isset( $parts[4] ) ? $parts[4] : false ) ? 1 : 0;
+            $sub_field['allow_null']    = $this->has_repeater_sub_field_option( $option_parts, 'allow_null' ) ? 1 : 0;
         }
 
         if ( 'repeater' === $sub_field_type ) {
