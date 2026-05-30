@@ -1679,26 +1679,190 @@ class SCMB_Blocks {
     /**
      * Compact/Minify CSS
      * Removes unnecessary whitespace, newlines, and comments
+     * Keeps whitespace that is syntactically meaningful in modern CSS values
+     * such as calc(), min(), max(), clamp(), var() fallbacks, gradients, and
+     * space-separated color functions.
      * 
      * @param string $css CSS code
      * @return string Minified CSS
      */
     private function compact_css($css) {
-        // Remove comments
-        $css = preg_replace('!/\*[^*]*\*+(?:[^/*][^*]*\*+)*/!', '', $css);
-        
-        // Remove newlines and multiple spaces
-        $css = preg_replace('/[\r\n\t]+/', ' ', $css);
-        $css = preg_replace('/\s+/', ' ', $css);
-        
-        // Remove spaces around special characters
-        $css = preg_replace('/\s*([{}:;,>+~])\s*/', '$1', $css);
-        
-        // Remove trailing semicolon in declarations
-        $css = preg_replace('/;}/', '}', $css);
-        
-        // Trim
-        return trim($css);
+        $css = $this->strip_css_comments($css);
+
+        $output = '';
+        $length = strlen($css);
+        $quote = null;
+        $pending_space = false;
+        $paren_depth = 0;
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $css[$i];
+
+            if (null !== $quote) {
+                $output .= $char;
+
+                if ('\\' === $char && $i + 1 < $length) {
+                    $output .= $css[++$i];
+                    continue;
+                }
+
+                if ($char === $quote) {
+                    $quote = null;
+                }
+
+                continue;
+            }
+
+            if ('"' === $char || "'" === $char) {
+                if ($pending_space && $this->css_needs_space_before($output, $char, $paren_depth)) {
+                    $output .= ' ';
+                }
+
+                $pending_space = false;
+                $quote = $char;
+                $output .= $char;
+                continue;
+            }
+
+            if (ctype_space($char)) {
+                $pending_space = '' !== $output;
+                continue;
+            }
+
+            if ($pending_space && $this->css_needs_space_before($output, $char, $paren_depth)) {
+                $output .= ' ';
+            }
+
+            $pending_space = false;
+
+            if ('(' === $char) {
+                $paren_depth++;
+                $output .= $char;
+                continue;
+            }
+
+            if (')' === $char) {
+                $paren_depth = max(0, $paren_depth - 1);
+                $output = rtrim($output);
+                $output .= $char;
+                continue;
+            }
+
+            if ($this->css_can_trim_before($char, $paren_depth)) {
+                $output = rtrim($output);
+            }
+
+            $output .= $char;
+        }
+
+        $output = preg_replace('/;(?=\})/', '', $output);
+
+        return trim($output);
+    }
+
+    /**
+     * Remove CSS comments without touching comment-like text inside strings.
+     *
+     * @param string $css CSS code.
+     * @return string CSS without comments.
+     */
+    private function strip_css_comments($css) {
+        $output = '';
+        $length = strlen($css);
+        $quote = null;
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $css[$i];
+
+            if (null !== $quote) {
+                $output .= $char;
+
+                if ('\\' === $char && $i + 1 < $length) {
+                    $output .= $css[++$i];
+                    continue;
+                }
+
+                if ($char === $quote) {
+                    $quote = null;
+                }
+
+                continue;
+            }
+
+            if ('"' === $char || "'" === $char) {
+                $quote = $char;
+                $output .= $char;
+                continue;
+            }
+
+            if ('/' === $char && $i + 1 < $length && '*' === $css[$i + 1]) {
+                if ('' !== $output) {
+                    $output .= ' ';
+                }
+
+                $i += 2;
+
+                while ($i < $length - 1 && ! ('*' === $css[$i] && '/' === $css[$i + 1])) {
+                    $i++;
+                }
+
+                $i++;
+                continue;
+            }
+
+            $output .= $char;
+        }
+
+        return $output;
+    }
+
+    /**
+     * Decide whether a collapsed whitespace run is required before a character.
+     *
+     * @param string $output CSS already written.
+     * @param string $char Next character.
+     * @param int    $paren_depth Current parenthesis depth.
+     * @return bool True when one space should be kept.
+     */
+    private function css_needs_space_before($output, $char, $paren_depth) {
+        $previous = '' !== $output ? $output[strlen($output) - 1] : '';
+
+        if ('' === $previous) {
+            return false;
+        }
+
+        if (in_array($char, ['{', '}', ';', ',', ')'], true)) {
+            return false;
+        }
+
+        if (in_array($previous, ['{', '}', ';', ',', '(', '['], true)) {
+            return false;
+        }
+
+        if (0 === $paren_depth && in_array($char, ['>', '+', '~'], true)) {
+            return false;
+        }
+
+        if (0 === $paren_depth && in_array($previous, ['>', '+', '~'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Decide whether whitespace before a punctuation character can be trimmed.
+     *
+     * @param string $char Current character.
+     * @param int    $paren_depth Current parenthesis depth.
+     * @return bool True when preceding whitespace can be removed.
+     */
+    private function css_can_trim_before($char, $paren_depth) {
+        if (in_array($char, ['{', '}', ';', ','], true)) {
+            return true;
+        }
+
+        return 0 === $paren_depth && in_array($char, ['>', '+', '~'], true);
     }
     
     /**
