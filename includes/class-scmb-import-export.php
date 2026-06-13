@@ -226,17 +226,17 @@ class SCMB_Import_Export {
     private function handle_import_preview() {
         check_admin_referer('scmb_import_modules', 'scmb_import_nonce');
 
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload array is unslashed and sanitized immediately before use.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload metadata is sanitized field-by-field below. Keep tmp_name raw because Windows paths use backslashes.
         $file = isset($_FILES['scmb_import_file']) && is_array($_FILES['scmb_import_file'])
-            ? array_map('sanitize_text_field', wp_unslash($_FILES['scmb_import_file']))
+            ? $_FILES['scmb_import_file']
             : [];
 
         if (empty($file) || !isset($file['tmp_name'])) {
             return [['type' => 'error', 'message' => __('No import file was uploaded.', 'secure-custom-module-builder')], null];
         }
 
-        $tmp_name = isset($file['tmp_name']) ? $file['tmp_name'] : '';
-        $file_name = isset($file['name']) ? sanitize_file_name($file['name']) : '';
+        $tmp_name = isset($file['tmp_name']) ? (string) $file['tmp_name'] : '';
+        $file_name = isset($file['name']) ? sanitize_file_name(wp_unslash($file['name'])) : '';
 
         if (!empty($file['error'])) {
             return [['type' => 'error', 'message' => __('The import file could not be uploaded.', 'secure-custom-module-builder')], null];
@@ -246,14 +246,7 @@ class SCMB_Import_Export {
             return [['type' => 'error', 'message' => __('The import file could not be read.', 'secure-custom-module-builder')], null];
         }
 
-        $file_type = wp_check_filetype(
-            $file_name,
-            [
-                'json' => 'application/json',
-            ]
-        );
-
-        if ('json' !== $file_type['ext'] || 'application/json' !== $file_type['type']) {
+        if (!$this->is_json_import_file($file_name)) {
             return [['type' => 'error', 'message' => __('Please upload a valid JSON package file.', 'secure-custom-module-builder')], null];
         }
 
@@ -264,6 +257,10 @@ class SCMB_Import_Export {
         }
 
         $package = json_decode($contents, true);
+
+        if (JSON_ERROR_NONE !== json_last_error()) {
+            return [['type' => 'error', 'message' => __('The selected file contains invalid JSON.', 'secure-custom-module-builder')], null];
+        }
 
         if (!is_array($package) || empty($package['modules']) || !is_array($package['modules'])) {
             return [['type' => 'error', 'message' => __('The selected file is not a valid SCMB package.', 'secure-custom-module-builder')], null];
@@ -586,6 +583,22 @@ class SCMB_Import_Export {
     }
 
     /**
+     * Check whether an import upload is a JSON file.
+     *
+     * WordPress installations can disagree about the MIME type for JSON uploads,
+     * so extension validation is the stable gate and json_decode validates the
+     * actual package contents immediately after the file is read.
+     *
+     * @param string $file_name Uploaded file name.
+     * @return bool
+     */
+    private function is_json_import_file($file_name) {
+        $extension = strtolower((string) pathinfo($file_name, PATHINFO_EXTENSION));
+
+        return 'json' === $extension;
+    }
+
+    /**
      * Render import preview.
      *
      * @param array|null $preview Preview data.
@@ -795,12 +808,48 @@ class SCMB_Import_Export {
     }
 
     private function update_module_value($post_id, $field_name, $value) {
+        $field_key = $this->get_module_field_key($field_name);
+
         if (function_exists('update_field')) {
-            update_field($field_name, $value, $post_id);
+            update_field($field_key ?: $field_name, $value, $post_id);
             return;
         }
 
         update_post_meta($post_id, $field_name, $value);
+
+        if ($field_key) {
+            update_post_meta($post_id, '_' . $field_name, $field_key);
+        }
+    }
+
+    /**
+     * Get the ACF field key for a module definition value.
+     *
+     * Updating by key is important when importing into a fresh site because ACF
+     * needs the hidden field reference meta to format repeaters, booleans, images,
+     * and other typed fields correctly.
+     *
+     * @param string $field_name ACF field name.
+     * @return string
+     */
+    private function get_module_field_key($field_name) {
+        $field_keys = [
+            'module_label' => 'field_module_label',
+            'module_key' => 'field_module_key',
+            'module_category' => 'field_module_category',
+            'module_icon' => 'field_module_icon',
+            'module_description' => 'field_module_description',
+            'module_preview_image' => 'field_module_preview_image',
+            'module_status' => 'field_module_status',
+            'module_single_instance' => 'field_module_single_instance',
+            'module_compact_code' => 'field_module_compact_code',
+            'module_html' => 'field_module_html',
+            'module_css' => 'field_module_css',
+            'module_js' => 'field_module_js',
+            'module_fields' => 'field_module_fields',
+        ];
+
+        return isset($field_keys[$field_name]) ? $field_keys[$field_name] : '';
     }
 
     private function sanitize_module_key($key) {
