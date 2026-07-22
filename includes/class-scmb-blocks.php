@@ -51,6 +51,11 @@ class SCMB_Blocks {
             filemtime( $editor_css_path )
         );
 
+        $global_css = get_option('scmb_global_editor_css', '');
+        if (!empty($global_css)) {
+            wp_add_inline_style('scmb-block-editor', $global_css);
+        }
+
         if ( file_exists( $editor_js_path ) ) {
             wp_enqueue_script(
                 'scmb-block-editor',
@@ -1018,8 +1023,25 @@ class SCMB_Blocks {
                 return $this->prepare_repeater_rows( $value, $field );
 
             default:
-                return is_scalar( $value ) ? esc_html( (string) $value ) : '';
+                return is_scalar( $value )
+                    ? wp_kses( (string) $value, $this->get_allowed_inline_html_tags() )
+                    : '';
         }
+    }
+
+    /**
+     * Inline HTML tags allowed in plain text/textarea field values.
+     *
+     * @return array
+     */
+    private function get_allowed_inline_html_tags() {
+        return [
+            'span'   => [],
+            'i'      => [],
+            'br'     => [],
+            'em'     => [],
+            'strong' => [],
+        ];
     }
 
     /**
@@ -1138,7 +1160,9 @@ class SCMB_Blocks {
                 );
 
             default:
-                return is_scalar( $value ) ? esc_html( (string) $value ) : '';
+                return is_scalar( $value )
+                    ? wp_kses( (string) $value, $this->get_allowed_inline_html_tags() )
+                    : '';
         }
     }
 

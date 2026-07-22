@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.17
+Stable tag: 1.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,10 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.18
+* Text and Textarea module fields now render `<span>`, `<i>`, `<br>`, `<em>`, and `<strong>` tags instead of escaping them as literal text; all other HTML in these fields is still stripped.
+* Added a Module Builder Settings page for entering global custom CSS loaded inside the Gutenberg block editor.
 
 ### 1.0.17
 * Fixed JSON module imports on Windows/LocalWP by preserving PHP upload temp paths.
