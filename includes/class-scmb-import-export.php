@@ -101,13 +101,38 @@ class SCMB_Import_Export {
                             <tr>
                                 <th scope="row"><?php esc_html_e('Specific Modules', 'secure-custom-module-builder'); ?></th>
                                 <td>
-                                    <select name="module_ids[]" multiple size="8" class="scmb-module-select">
-                                        <?php foreach ($modules as $module) : ?>
-                                            <option value="<?php echo esc_attr($module->ID); ?>">
-                                                <?php echo esc_html($module->post_title); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                    <fieldset id="scmb-module-checklist-field" class="scmb-module-checklist-field scmb-module-checklist-field--disabled">
+                                        <legend class="screen-reader-text"><?php esc_html_e('Specific Modules', 'secure-custom-module-builder'); ?></legend>
+
+                                        <div class="scmb-module-checklist-toolbar">
+                                            <button type="button" class="button-link" data-scmb-check-action="all"><?php esc_html_e('Select all', 'secure-custom-module-builder'); ?></button>
+                                            <span aria-hidden="true">|</span>
+                                            <button type="button" class="button-link" data-scmb-check-action="none"><?php esc_html_e('Select none', 'secure-custom-module-builder'); ?></button>
+                                            <span class="scmb-module-checklist-count">
+                                                <?php
+                                                echo esc_html(
+                                                    sprintf(
+                                                        /* translators: %d: number of selected modules. */
+                                                        __('%d selected', 'secure-custom-module-builder'),
+                                                        0
+                                                    )
+                                                );
+                                                ?>
+                                            </span>
+                                        </div>
+
+                                        <div class="scmb-module-checklist">
+                                            <?php foreach ($modules as $module) : ?>
+                                                <label class="scmb-module-checklist-item">
+                                                    <input type="checkbox" name="module_ids[]" value="<?php echo esc_attr($module->ID); ?>" disabled>
+                                                    <?php echo esc_html($module->post_title); ?>
+                                                </label>
+                                            <?php endforeach; ?>
+                                            <?php if (empty($modules)) : ?>
+                                                <p class="scmb-module-checklist-empty"><?php esc_html_e('No modules found.', 'secure-custom-module-builder'); ?></p>
+                                            <?php endif; ?>
+                                        </div>
+                                    </fieldset>
                                     <p class="description"><?php esc_html_e('Used only when "Choose specific modules" is selected.', 'secure-custom-module-builder'); ?></p>
                                 </td>
                             </tr>
@@ -165,9 +190,58 @@ class SCMB_Import_Export {
             .scmb-migration-panel h2 {
                 margin-top: 0;
             }
-            .scmb-module-select {
+            .scmb-module-checklist-field {
+                border: 0;
+                margin: 0;
+                padding: 0;
+                max-width: 480px;
+            }
+            .scmb-module-checklist-toolbar {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 6px;
+                font-size: 13px;
+            }
+            .scmb-module-checklist-toolbar .button-link {
+                text-decoration: none;
+            }
+            .scmb-module-checklist-count {
+                margin-left: auto;
+                color: #646970;
+            }
+            .scmb-module-checklist {
+                display: flex;
+                flex-direction: column;
+                max-height: 280px;
+                overflow-y: auto;
+                border: 1px solid #c3c4c7;
+                background: #fff;
+                padding: 4px 12px;
+            }
+            .scmb-module-checklist-item {
+                display: block;
                 width: 100%;
-                max-width: 420px;
+                padding: 7px 0;
+                border-bottom: 1px solid #f0f0f1;
+            }
+            .scmb-module-checklist-item:last-child {
+                border-bottom: 0;
+            }
+            .scmb-module-checklist-item:hover {
+                background: #f6f7f7;
+            }
+            .scmb-module-checklist-empty {
+                margin: 0;
+                color: #646970;
+            }
+            .scmb-module-checklist-field--disabled .scmb-module-checklist {
+                background: #f0f0f1;
+                color: #a7aaad;
+            }
+            .scmb-module-checklist-field--disabled .scmb-module-checklist-toolbar {
+                opacity: 0.5;
+                pointer-events: none;
             }
             .scmb-import-preview {
                 border-top: 1px solid #dcdcde;
@@ -184,6 +258,61 @@ class SCMB_Import_Export {
                 }
             }
         </style>
+        <script>
+            (function () {
+                var selectedLabel = <?php echo wp_json_encode(__('%d selected', 'secure-custom-module-builder')); ?>;
+                var fieldset = document.getElementById('scmb-module-checklist-field');
+                if (!fieldset) {
+                    return;
+                }
+
+                var scopeRadios = document.querySelectorAll('input[name="module_scope"]');
+                var checkboxes = fieldset.querySelectorAll('input[type="checkbox"]');
+                var countEl = fieldset.querySelector('.scmb-module-checklist-count');
+
+                function updateCount() {
+                    var checked = fieldset.querySelectorAll('input[type="checkbox"]:checked').length;
+                    if (countEl) {
+                        countEl.textContent = selectedLabel.replace('%d', checked);
+                    }
+                }
+
+                function updateEnabledState() {
+                    var checkedScope = document.querySelector('input[name="module_scope"]:checked');
+                    var isSpecific = !!checkedScope && 'specific' === checkedScope.value;
+
+                    fieldset.classList.toggle('scmb-module-checklist-field--disabled', !isSpecific);
+                    checkboxes.forEach(function (checkbox) {
+                        checkbox.disabled = !isSpecific;
+                    });
+
+                    if (isSpecific && checkboxes.length) {
+                        checkboxes[0].focus();
+                    }
+                }
+
+                scopeRadios.forEach(function (radio) {
+                    radio.addEventListener('change', updateEnabledState);
+                });
+
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.addEventListener('change', updateCount);
+                });
+
+                fieldset.querySelectorAll('[data-scmb-check-action]').forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        var shouldCheck = 'all' === button.getAttribute('data-scmb-check-action');
+                        checkboxes.forEach(function (checkbox) {
+                            checkbox.checked = shouldCheck;
+                        });
+                        updateCount();
+                    });
+                });
+
+                updateEnabledState();
+                updateCount();
+            })();
+        </script>
         <?php
     }
 
