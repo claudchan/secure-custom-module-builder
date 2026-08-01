@@ -21,3 +21,6 @@ package-lock.json
 
 # Claude Code local tooling config (not part of the plugin, solo project - no need to share/publish)
 .claude/
+
+# Local reference copies of third-party plugins (e.g. downloaded ACF/SCF builds for compatibility checks)
+_backup/

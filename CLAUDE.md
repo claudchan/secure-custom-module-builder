@@ -35,4 +35,6 @@ Follow WordPress/ACF conventions already in place rather than generic PHP idioms
 
 ## 6. Project-specific context
 
+See [docs/scf-compatibility.md](docs/scf-compatibility.md) for SCMB's exact ACF/SCF integration surface (hooks, `acf_register_block_type()` usage, field types actually used) and a checklist to re-run whenever the installed ACF/SCF version is updated — including a known forward-looking risk around SCF's default block API version.
+
 The repeater sub-field syntax (`field_name|Field Label|field_type|options`, with indentation for nesting) and the field-name/module-key normalization rules are implemented independently in three places: `class-scmb-blocks.php` (authoritative, drives ACF/rendering), `class-scmb-import-export.php` (sanitizes imported payloads), and `assets/js/admin.js` (live snippet-panel preview). Changing the DSL or normalization rules in one place requires updating all three or the editor preview will silently drift from actual rendering behavior. The plugin version is duplicated across the `Version:` header and `SCMB_VERSION` constant in [secure-custom-module-builder.php](secure-custom-module-builder.php) and the `Stable tag:`/changelog in [README.md](README.md) — keep all three in sync on release.
