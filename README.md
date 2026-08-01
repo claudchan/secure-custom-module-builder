@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.19
+Stable tag: 1.0.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,9 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.20
+* Fixed the ACF dependency check incorrectly accepting the free Advanced Custom Fields plugin, which silently left the plugin active with no working blocks since ACF Free doesn't include the Blocks or Repeater features SCMB requires. The check now specifically requires Secure Custom Fields or ACF PRO, and the deactivation notice points users to the correct plugin.
 
 ### 1.0.19
 * Replaced the multi-select list box in Module Builder Import/Export with a checkbox list for choosing specific modules to export, adding select all/none controls and a live selection count.

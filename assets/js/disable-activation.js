@@ -7,6 +7,6 @@ document.addEventListener( 'DOMContentLoaded', function() {
         activateLink.style.pointerEvents = 'none';
         activateLink.style.opacity = '0.5';
         activateLink.style.cursor = 'not-allowed';
-        activateLink.title = 'This plugin requires Advanced Custom Fields or Secure Custom Fields to be installed and activated.';
+        activateLink.title = 'This plugin requires Secure Custom Fields or ACF PRO to be installed and activated. The free Advanced Custom Fields plugin does not include the Blocks and Repeater features this plugin depends on.';
     }
 });

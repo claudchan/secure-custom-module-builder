@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/claudchan/secure-custom-module-builder
  * Update URI: https://github.com/claudchan/secure-custom-module-builder
  * Description: Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
- * Version: 1.0.19
+ * Version: 1.0.20
  * Author: Claud Chan
  * Author URI: https://github.com/claudchan
  * License: GPL v2 or later
@@ -19,16 +19,20 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Checks if an ACF-compatible fields plugin is active.
+ * Checks if a fields plugin with the ACF Blocks/Repeater APIs SCMB depends on is active.
  *
- * Supports Advanced Custom Fields and Secure Custom Fields by checking for the
- * APIs SCMB uses instead of relying only on a specific class name.
+ * The free Advanced Custom Fields plugin shares its `ACF` class and its
+ * get_field()/acf_add_local_field_group() functions with Secure Custom Fields and
+ * ACF PRO, but does not implement acf_register_block_type() or the Repeater field
+ * type that SCMB's block registration and Module Fields UI require - both are
+ * gated to SCF and ACF PRO. Checking for acf_register_block_type() specifically
+ * (the same guard used in SCMB_Blocks::register_blocks()) is what actually tells
+ * free ACF apart from a working dependency.
  *
  * @return bool
  */
 function scmb_has_acf_dependency() {
-    return class_exists( 'ACF' )
-        || ( function_exists( 'get_field' ) && function_exists( 'acf_add_local_field_group' ) );
+    return function_exists( 'acf_register_block_type' );
 }
 
 /**
@@ -49,16 +53,16 @@ add_action( 'admin_init', 'scmb_check_for_acf_dependency' );
 
 
 /**
- * Displays an admin notice if ACF is not active.
+ * Displays an admin notice if a working fields plugin is not active.
  */
 function scmb_acf_missing_notice() {
     $plugin_name = '<strong>' . esc_html__( 'Secure Custom Module Builder', 'secure-custom-module-builder' ) . '</strong>';
-    $acf_link    = esc_url( 'https://wordpress.org/plugins/advanced-custom-fields/' );
+    $scf_link    = esc_url( 'https://wordpress.org/plugins/secure-custom-fields/' );
     $message     = sprintf(
-        /* translators: 1: Plugin name, 2: ACF plugin link. */
-        esc_html__( '%1$s has been deactivated. It requires the %2$s plugin to be installed and activated.', 'secure-custom-module-builder' ),
+        /* translators: 1: Plugin name, 2: Secure Custom Fields plugin link. */
+        esc_html__( '%1$s has been deactivated. It requires %2$s or ACF PRO. The free Advanced Custom Fields plugin does not include the Blocks and Repeater features this plugin depends on.', 'secure-custom-module-builder' ),
         $plugin_name,
-        '<a href="' . $acf_link . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Advanced Custom Fields or Secure Custom Fields', 'secure-custom-module-builder' ) . '</a>'
+        '<a href="' . $scf_link . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Secure Custom Fields', 'secure-custom-module-builder' ) . '</a>'
     );
     ?>
     <div class="notice notice-error is-dismissible">
@@ -68,7 +72,7 @@ function scmb_acf_missing_notice() {
 }
 
 // Define plugin constants
-define('SCMB_VERSION', '1.0.19');
+define('SCMB_VERSION', '1.0.20');
 define('SCMB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCMB_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCMB_PLUGIN_FILE', __FILE__);
