@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.5
-Stable tag: 1.0.21
+Stable tag: 1.0.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,9 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.22
+* Fixed the "Open in New Tab" macro (`{{field_name__target}}`) not working for URL fields inside repeaters (including nested repeaters). Repeater row values were run through the general-purpose field name normalizer, which collapsed the field's intentional double underscore into a single one before the value reached the template, so the macro never matched. Top-level URL fields were unaffected.
 
 ### 1.0.21
 * Raised the minimum required PHP version to 8.5, after auditing the codebase for PHP 7.4-8.5 breaking/deprecated changes and finding none; no code changes were needed for compatibility.

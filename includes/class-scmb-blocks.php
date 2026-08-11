@@ -1173,7 +1173,9 @@ class SCMB_Blocks {
             $prepared_row = [];
 
             foreach ( $row as $sub_field_name => $sub_field_value ) {
-                $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+                if ( ! isset( $sub_field_schema[ $sub_field_name ] ) ) {
+                    $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+                }
 
                 if ( empty( $sub_field_name ) ) {
                     continue;
@@ -1294,7 +1296,9 @@ class SCMB_Blocks {
             $prepared_row = [];
 
             foreach ( $row as $sub_field_name => $sub_field_value ) {
-                $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+                if ( ! isset( $schema[ $sub_field_name ] ) ) {
+                    $sub_field_name = $this->normalize_template_field_name( $sub_field_name );
+                }
 
                 if ( empty( $sub_field_name ) ) {
                     continue;
