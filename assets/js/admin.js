@@ -289,12 +289,16 @@
                     '{{/' + name + '}}';
             }
 
+            return buildLeafSnippet(name, type);
+        }
+
+        function buildLeafSnippet(name, type) {
             if (type === 'image') {
                 return '<img src="{{' + name + '}}" alt="">';
             }
 
             if (type === 'url') {
-                return '<a href="{{' + name + '}}">{{' + name + '}}</a>';
+                return buildUrlSnippet(name);
             }
 
             if (type === 'checkbox' || type === 'true_false') {
@@ -302,6 +306,10 @@
             }
 
             return '{{' + name + '}}';
+        }
+
+        function buildUrlSnippet(name) {
+            return '<a href="{{' + name + '}}"{{#if ' + name + '__target}} target="_blank" rel="noopener noreferrer nofollow"{{/if}}>{{' + name + '}}</a>';
         }
 
         function parseRepeaterSubFields(raw) {
@@ -386,7 +394,7 @@
                         indent + '{{/' + field.name + '}}';
                 }
 
-                return indent + '<div class="' + escapeAttribute(field.name) + '">{{' + field.name + '}}</div>';
+                return indent + '<div class="' + escapeAttribute(field.name) + '">' + buildLeafSnippet(field.name, field.type) + '</div>';
             }).join('\n');
         }
 

@@ -1,0 +1,64 @@
+.scmb-url-suggest-list {
+    position: absolute;
+    z-index: 999999;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #8c8f94;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    display: none;
+}
+
+.scmb-url-suggest-list li {
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    line-height: 1.4;
+}
+
+.scmb-url-suggest-list li.scmb-url-suggest-message {
+    cursor: default;
+    color: #646970;
+    font-style: italic;
+}
+
+.scmb-url-suggest-list li[data-url]:hover,
+.scmb-url-suggest-list li[data-url].is-active {
+    background: #2271b1;
+    color: #fff;
+}
+
+.scmb-url-suggest-list li[data-url]:hover .scmb-url-suggest-type,
+.scmb-url-suggest-list li[data-url]:hover .scmb-url-suggest-url,
+.scmb-url-suggest-list li[data-url].is-active .scmb-url-suggest-type,
+.scmb-url-suggest-list li[data-url].is-active .scmb-url-suggest-url {
+    color: #fff;
+}
+
+.scmb-url-suggest-title {
+    font-weight: 600;
+}
+
+.scmb-url-suggest-type {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #646970;
+    background: rgba(100, 102, 112, 0.1);
+    border-radius: 2px;
+    padding: 1px 5px;
+}
+
+.scmb-url-suggest-url {
+    flex-basis: 100%;
+    font-size: 12px;
+    color: #646970;
+    word-break: break-all;
+}

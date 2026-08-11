@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.5
-Stable tag: 1.0.20
+Stable tag: 1.0.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,12 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.21
+* Raised the minimum required PHP version to 8.5, after auditing the codebase for PHP 7.4-8.5 breaking/deprecated changes and finding none; no code changes were needed for compatibility.
+* URL fields (top-level and repeater sub-fields, including nested repeaters) now show a link-suggestion autocomplete when editing a block, searching published pages, posts, custom post types, and post type archive pages (3+ characters, skipped once the field already holds a resolved `http…`/`#…` value).
+* Every URL field now automatically gets an "Open in New Tab" checkbox, exposed in templates as `{{field_name__target}}` (`target="_blank" rel="noopener noreferrer nofollow"` when checked).
+* Fixed the Field Snippets panel to generate the same smart `<a href>`/`<img src>`/`{{#if}}` snippets for repeater sub-fields that it already generated for top-level fields.
 
 ### 1.0.20
 * Fixed the ACF dependency check incorrectly accepting the free Advanced Custom Fields plugin, which silently left the plugin active with no working blocks since ACF Free doesn't include the Blocks or Repeater features SCMB requires. The check now specifically requires Secure Custom Fields or ACF PRO, and the deactivation notice points users to the correct plugin.

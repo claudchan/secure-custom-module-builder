@@ -71,6 +71,55 @@ class SCMB_Blocks {
                 'before'
             );
         }
+
+        $this->enqueue_url_suggest_assets();
+    }
+
+    /**
+     * Enqueue the link-suggestion autocomplete for ACF URL fields.
+     *
+     * @return void
+     */
+    private function enqueue_url_suggest_assets() {
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            return;
+        }
+
+        $suggest_css_path = SCMB_PLUGIN_DIR . 'assets/css/url-suggest.css';
+        $suggest_js_path  = SCMB_PLUGIN_DIR . 'assets/js/url-suggest.js';
+
+        if ( ! file_exists( $suggest_css_path ) || ! file_exists( $suggest_js_path ) ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'scmb-url-suggest',
+            SCMB_PLUGIN_URL . 'assets/css/url-suggest.css',
+            [],
+            filemtime( $suggest_css_path )
+        );
+
+        wp_enqueue_script(
+            'scmb-url-suggest',
+            SCMB_PLUGIN_URL . 'assets/js/url-suggest.js',
+            [ 'jquery' ],
+            filemtime( $suggest_js_path ),
+            true
+        );
+
+        wp_localize_script(
+            'scmb-url-suggest',
+            'scmbUrlSuggest',
+            [
+                'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
+                'nonce'    => wp_create_nonce( SCMB_Url_Search::NONCE_ACTION ),
+                'minChars' => SCMB_Url_Search::MIN_CHARS,
+                'i18n'     => [
+                    'searching' => __( 'Searching…', 'secure-custom-module-builder' ),
+                    'noResults' => __( 'No matching pages, posts, or archives found.', 'secure-custom-module-builder' ),
+                ],
+            ]
+        );
     }
     
     /**
@@ -304,8 +353,12 @@ class SCMB_Blocks {
             }
             
             $acf_fields[] = $acf_field;
+
+            if ( 'url' === $field['field_type'] ) {
+                $acf_fields = array_merge( $acf_fields, $this->build_url_link_option_fields( $acf_field ) );
+            }
         }
-        
+
         // Register field group
         if (!empty($acf_fields)) {
             acf_add_local_field_group([
@@ -633,9 +686,24 @@ class SCMB_Blocks {
             if ( 'repeater' === $field['field_type'] ) {
                 $this->add_repeater_template_helpers( $context, $field_name, $prepared_value );
             }
+
+            if ( 'url' === $field['field_type'] ) {
+                $this->add_url_link_option_context( $context, $field_name );
+            }
         }
 
         return $context;
+    }
+
+    /**
+     * Add the {{field__target}} context value for a URL field.
+     *
+     * @param array  $context    Rendering context, by reference.
+     * @param string $field_name Normalized URL field name.
+     * @return void
+     */
+    private function add_url_link_option_context( &$context, $field_name ) {
+        $context[ $field_name . '__target' ] = (bool) $this->get_acf_field_value( $field_name . '__target' );
     }
 
     /**
@@ -817,12 +885,14 @@ class SCMB_Blocks {
                 break;
             }
 
-            $sub_field = $this->build_repeater_sub_field_from_line( $line['text'], $parent_key );
+            $parsed_fields = $this->build_repeater_sub_field_from_line( $line['text'], $parent_key );
             ++$position;
 
-            if ( empty( $sub_field ) ) {
+            if ( empty( $parsed_fields ) ) {
                 continue;
             }
+
+            $sub_field = array_shift( $parsed_fields );
 
             if ( 'repeater' === $sub_field['type'] ) {
                 $sub_field['sub_fields'] = $this->parse_repeater_sub_field_level( $lines, $position, $line['indent'], $sub_field['key'] );
@@ -832,13 +902,20 @@ class SCMB_Blocks {
             }
 
             $sub_fields[] = $sub_field;
+
+            foreach ( $parsed_fields as $companion_field ) {
+                $sub_fields[] = $companion_field;
+            }
         }
 
         return $sub_fields;
     }
 
     /**
-     * Build one ACF sub-field from a config line.
+     * Build the ACF sub-field(s) for a config line.
+     *
+     * Normally returns a single sub-field, but a URL sub-field also returns
+     * its "open in new tab" companion checkbox field.
      *
      * @param string $line       Config line without indentation.
      * @param string $parent_key Parent ACF field key.
@@ -886,7 +963,36 @@ class SCMB_Blocks {
             }
         }
 
-        return $sub_field;
+        $fields = [ $sub_field ];
+
+        if ( 'url' === $sub_field_type ) {
+            $fields = array_merge( $fields, $this->build_url_link_option_fields( $sub_field ) );
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Build the companion "open in new tab" checkbox field every URL field
+     * automatically gets alongside it.
+     *
+     * Exposed in templates as {{field_name__target}}.
+     *
+     * @param array $url_field ACF url field definition (key/name/label already set).
+     * @return array
+     */
+    private function build_url_link_option_fields( $url_field ) {
+        return [
+            [
+                'key'           => $url_field['key'] . '_target',
+                /* translators: %s: URL field label. */
+                'label'         => sprintf( __( 'Open "%s" in New Tab', 'secure-custom-module-builder' ), $url_field['label'] ),
+                'name'          => $url_field['name'] . '__target',
+                'type'          => 'true_false',
+                'ui'            => 1,
+                'default_value' => 0,
+            ],
+        ];
     }
 
     /**
