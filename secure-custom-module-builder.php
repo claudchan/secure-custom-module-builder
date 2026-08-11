@@ -10,7 +10,7 @@
  * License: GPL v2 or later
  * Text Domain: secure-custom-module-builder
  * Requires at least: 6.0
- * Requires PHP: 7.4
+ * Requires PHP: 8.5
  */
 
 // Exit if accessed directly
