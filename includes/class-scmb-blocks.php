@@ -991,6 +991,7 @@ class SCMB_Blocks {
                 'type'           => 'true_false',
                 'ui'             => 1,
                 'default_value'  => 0,
+                'wrapper'        => [ 'width' => 50 ],
                 'scmb_companion' => true,
             ],
         ];
