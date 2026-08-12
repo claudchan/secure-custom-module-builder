@@ -136,7 +136,7 @@
     }
 
     function looksLikeResolvedUrl(term) {
-        return /^https?:/i.test(term) || term.charAt(0) === '#';
+        return /^(https?:|mailto:|tel:)/i.test(term) || term.charAt(0) === '#' || term.charAt(0) === '/';
     }
 
     $(document).on('input.scmbUrlSuggest', URL_FIELD_SELECTOR, function() {
@@ -189,6 +189,20 @@
     $(document).on('mousedown.scmbUrlSuggest', function(e) {
         if ($list && !$(e.target).closest('.scmb-url-suggest-list').length && !$(e.target).is(URL_FIELD_SELECTOR)) {
             closeList();
+        }
+    });
+
+    // Capture-phase scroll listener: catches scrolling inside nested containers
+    // (e.g. the block editor sidebar), which a bubble-phase/window listener would miss.
+    document.addEventListener('scroll', function() {
+        if ($activeInput && $list && $list.is(':visible')) {
+            positionList($activeInput);
+        }
+    }, true);
+
+    $(window).on('resize.scmbUrlSuggest', function() {
+        if ($activeInput && $list && $list.is(':visible')) {
+            positionList($activeInput);
         }
     });
 })(jQuery);
