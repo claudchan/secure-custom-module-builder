@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.5
-Stable tag: 1.0.23
+Stable tag: 1.0.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,9 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.24
+* Fixed repeaters unexpectedly losing their compact table layout after adding a URL field. The auto-added "Open in New Tab" companion checkbox no longer counts against the 3-field compact-layout limit — only the fields you actually type in the Sub-fields DSL do.
 
 ### 1.0.23
 * URL field link suggestions no longer skip searching only for `http…`/`#…` values — `mailto:`, `tel:`, and any relative/protocol-relative path starting with `/` are now also treated as already-resolved values instead of search terms.

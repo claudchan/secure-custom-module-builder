@@ -984,13 +984,14 @@ class SCMB_Blocks {
     private function build_url_link_option_fields( $url_field ) {
         return [
             [
-                'key'           => $url_field['key'] . '_target',
+                'key'            => $url_field['key'] . '_target',
                 /* translators: %s: URL field label. */
-                'label'         => sprintf( __( 'Open "%s" in New Tab', 'secure-custom-module-builder' ), $url_field['label'] ),
-                'name'          => $url_field['name'] . '__target',
-                'type'          => 'true_false',
-                'ui'            => 1,
-                'default_value' => 0,
+                'label'          => sprintf( __( 'Open "%s" in New Tab', 'secure-custom-module-builder' ), $url_field['label'] ),
+                'name'           => $url_field['name'] . '__target',
+                'type'           => 'true_false',
+                'ui'             => 1,
+                'default_value'  => 0,
+                'scmb_companion' => true,
             ],
         ];
     }
@@ -1053,16 +1054,28 @@ class SCMB_Blocks {
             'date_time_picker',
         ];
 
-        $has_only_compact_sub_fields = ! empty( $repeater_field['sub_fields'] );
+        // Auto-added companion fields (e.g. the URL field's "Open in New Tab"
+        // checkbox) shouldn't count against the compact-layout field limit —
+        // only the fields the module author actually typed should.
+        $authored_sub_fields = array_values(
+            array_filter(
+                $repeater_field['sub_fields'],
+                function ( $sub_field ) {
+                    return empty( $sub_field['scmb_companion'] );
+                }
+            )
+        );
 
-        foreach ( $repeater_field['sub_fields'] as $sub_field ) {
+        $has_only_compact_sub_fields = ! empty( $authored_sub_fields );
+
+        foreach ( $authored_sub_fields as $sub_field ) {
             if ( empty( $sub_field['type'] ) || ! in_array( $sub_field['type'], $compact_repeater_types, true ) ) {
                 $has_only_compact_sub_fields = false;
                 break;
             }
         }
 
-        if ( $has_only_compact_sub_fields && count( $repeater_field['sub_fields'] ) <= 3 ) {
+        if ( $has_only_compact_sub_fields && count( $authored_sub_fields ) <= 3 ) {
             $repeater_field['layout'] = 'table';
         }
 
