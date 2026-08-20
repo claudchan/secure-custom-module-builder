@@ -1,12 +1,12 @@
 # Secure Custom Module Builder (SCMB)
 
-Contributors: claudchan
-Tags: blocks, acf, gutenberg, module builder, custom blocks
-Requires at least: 6.0
-Tested up to: 7.0
-Requires PHP: 8.5
-Stable tag: 1.0.25
-License: GPLv2 or later
+Contributors: claudchan  
+Tags: blocks, acf, gutenberg, module builder, custom blocks  
+Requires at least: 6.0  
+Tested up to: 7.0  
+Requires PHP: 8.5  
+Stable tag: 1.0.25  
+License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Build custom Gutenberg blocks with a visual interface - like HubSpot modules for WordPress
