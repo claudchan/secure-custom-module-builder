@@ -3,9 +3,9 @@
 Contributors: claudchan  
 Tags: blocks, acf, gutenberg, module builder, custom blocks  
 Requires at least: 6.0  
-Tested up to: 7.0  
+Tested up to: 7.1  
 Requires PHP: 8.5  
-Stable tag: 1.0.25  
+Stable tag: 1.0.26  
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,6 +40,10 @@ Once activated, where do you find the plugin settings or functionality?
 * **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
 
 ## Changelog
+
+### 1.0.26
+* Added a new "Module Insights" admin page under Module Builder displaying sitewide block usage metrics for all custom modules.
+* Includes a sortable post and page usage table with direct Gutenberg edit and view links, real-time title search, and client-side module toggling.
 
 ### 1.0.25
 * The "Open in New Tab" companion checkbox now renders at half width instead of spanning the full row, so it reads as a checkbox rather than a full-width bar. The URL field's own width is unchanged.

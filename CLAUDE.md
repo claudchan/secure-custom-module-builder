@@ -16,6 +16,7 @@ Secure Custom Module Builder (SCMB) is a WordPress plugin that lets site builder
 - **Import/export** — `includes/class-scmb-import-export.php` handles JSON export/import keyed by `module_key` (portable across sites), with a two-step preview→confirm flow backed by transients.
 - **Admin editor UI** — `includes/class-scmb-admin.php` + `assets/js/admin.js` enqueue CodeMirror for HTML/CSS/JS fields on `scmb_module` edit screens, add a Module Builder > Settings submenu, and drive a live "Field Snippets" panel by re-parsing the fields repeater client-side.
 - **Editor decoration** — `assets/js/block-editor.js` adds a cosmetic label/icon header to SCMB blocks in the Gutenberg canvas, driven by a `window.scmbBlockLabels` map injected server-side.
+- **Module insights** - `includes/class-scmb-insights.php` + `assets/js/insights.js` + `assets/css/insights.css` provide a Module Insights admin page under Module Builder, analyzing sitewide block usage across public post types and pages with real-time live search, column sorting, and direct editor links.
 - **Frontend** — `includes/class-scmb-renderer.php` is a near-empty stub; actual frontend CSS/JS enqueueing happens per-block in `class-scmb-blocks.php`'s `enqueue_block_assets`. `templates/admin-module-builder.php` is an intentional legacy compatibility stub — don't add logic there.
 
 ## 2. Coding conventions
