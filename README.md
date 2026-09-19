@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0  
 Tested up to: 7.1  
 Requires PHP: 8.5  
-Stable tag: 1.0.26  
+Stable tag: 1.0.27  
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,17 +29,23 @@ This plugin provides a secure framework for developers to create custom modules 
 1.  Navigate to your WordPress installation's plugins directory:
     `cd /path/to/wp-content/plugins/`
 2.  Clone the repository:
-    `git clone https://github.com/YOUR_USERNAME/secure-custom-module-builder.git`
+    `git clone https://github.com/claudchan/secure-custom-module-builder.git`
 3.  Activate the plugin through the 'Plugins' menu in WordPress.
 
 ## Usage
 
-Once activated, where do you find the plugin settings or functionality?
+Once activated, navigate to **Module Builder** in the WordPress admin sidebar.
 
-* **Example 1:** Navigate to **Settings > Custom Module Builder** to configure global options.
-* **Example 2:** Use the shortcode `[scmb_show_module id="1"]` to display a module.
+* **Create a module:** Click **Add New Module**, configure the label, fields, HTML template, CSS, and JavaScript, then publish.
+* **Insert a module:** Open any post or page in the Gutenberg editor. Find your module in the block inserter under its configured category (default: Custom). Insert it like any other block and fill in the fields in the block sidebar.
+* **Manage settings:** Go to **Module Builder > Settings** to configure global editor CSS.
+* **Import / Export modules:** Go to **Module Builder > Import / Export** to transfer modules between sites as JSON packages.
+* **View sitewide usage:** Go to **Module Builder > Module Insights** to see where each module is used across the site.
 
 ## Changelog
+
+### 1.0.27
+* Fixed README.md: corrected Git clone URL placeholder, removed nonexistent shortcode from Usage section, replaced placeholder Contributing section, and filled in missing changelog entries for versions 1.0.8, 1.0.10, 1.0.15, and 1.0.16.
 
 ### 1.0.26
 * Added a new "Module Insights" admin page under Module Builder displaying sitewide block usage metrics for all custom modules.
@@ -84,6 +90,12 @@ Once activated, where do you find the plugin settings or functionality?
 * Updated text domain usage, nonce/input handling, import validation, and escaping annotations.
 * Switched module frontend JavaScript output to WordPress inline script APIs while preserving once-per-module execution.
 
+### 1.0.16
+* Added support for forms in module templates, including `<form>`, `<input>`, `<label>`, `<select>`, `<textarea>`, `<button>`, `<fieldset>`, `<legend>`, `<datalist>`, `<output>`, `<option>`, and `<optgroup>` tags.
+
+### 1.0.15
+* Fixed CSS minification incorrectly stripping whitespace inside selector and property values.
+
 ### 1.0.13
 * Added repeater count helpers for templates, including `repeater_name__count` and `repeater_name__has_multiple`.
 * Added numeric comparisons in template conditionals, such as `{{#if market_list__count > 1}}`.
@@ -95,10 +107,16 @@ Once activated, where do you find the plugin settings or functionality?
 * Added select choices for top-level module fields using `value:Label` pairs separated by commas or new lines.
 * Added Allow Null support for top-level select module fields.
 
+### 1.0.10
+* Improved module field key autofill to generate stable, collision-free slugs on save.
+
 ### 1.0.9
 * Added module preview thumbnail uploads for Gutenberg inserter previews.
 * Added export/import support for preview thumbnail attachment IDs and single-instance settings.
 * Improved replace imports so exact title matches can be overwritten when module keys differ.
+
+### 1.0.8
+* Improved block editor field UI with clearer field group layouts and sidebar presentation.
 
 ### 1.0.7
 * Added repeater row helpers for templates: `__first`, `__last`, `__index`, and `__position`.
@@ -134,7 +152,8 @@ Once activated, where do you find the plugin settings or functionality?
 
 ## Contributing
 
-We welcome contributions! Please read our `CONTRIBUTING.md` (once you create it) for details on our code of conduct and the process for submitting pull requests to us.
+Contributions are welcome.
+Please open an issue or submit a pull request on [GitHub](https://github.com/claudchan/secure-custom-module-builder).
 
 ## License
 
