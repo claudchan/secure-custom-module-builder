@@ -144,60 +144,79 @@
      * @return {void}
      */
     function attachDragBehaviour(handle) {
-        var dragging   = false;
-        var startX     = 0;
-        var startWidth = 0;
+        var dragging    = false;
+        var startX      = 0;
+        var startWidth  = 0;
+        var activePtrId = null;
 
-        /* ---- Mouse/touch start ---------------------------------------- */
-        handle.addEventListener('mousedown', onDragStart);
-        handle.addEventListener('touchstart', onDragStart, { passive: true });
+        /* ---- Pointer start -------------------------------------------- */
+        handle.addEventListener('pointerdown', function (e) {
+            /* Only respond to the primary button / first touch point. */
+            if (e.button !== undefined && e.button !== 0) {
+                return;
+            }
 
-        function onDragStart(e) {
-            dragging   = true;
-            startX     = (e.touches ? e.touches[0].clientX : e.clientX);
-            startWidth = readStoredWidth();
+            e.preventDefault();
+
+            dragging    = true;
+            startX      = e.clientX;
+            startWidth  = readStoredWidth();
+            activePtrId = e.pointerId;
+
+            /*
+             * setPointerCapture routes ALL subsequent pointer events for this
+             * pointerId to the handle element, even when the cursor leaves the
+             * browser window.  This is what prevents the "glue" (stuck-drag)
+             * bug that occurred when the user released the mouse outside the
+             * viewport while the sidebar was clamped at MAX_WIDTH.
+             */
+            handle.setPointerCapture(e.pointerId);
 
             document.body.classList.add(DRAG_CLASS);
+        });
 
-            document.addEventListener('mousemove', onDragMove);
-            document.addEventListener('touchmove', onDragMove, { passive: true });
-            document.addEventListener('mouseup',   onDragEnd);
-            document.addEventListener('touchend',  onDragEnd);
-        }
-
-        /* ---- Move ----------------------------------------------------- */
-        function onDragMove(e) {
-            if (!dragging) {
+        /* ---- Pointer move --------------------------------------------- */
+        handle.addEventListener('pointermove', function (e) {
+            if (!dragging || e.pointerId !== activePtrId) {
                 return;
             }
 
-            var currentX = (e.touches ? e.touches[0].clientX : e.clientX);
-            /* Handle is on the LEFT edge of the sidebar; moving left (−x)
-             * increases the sidebar width. */
-            var delta    = startX - currentX;
-            var newWidth = clamp(startWidth + delta, MIN_WIDTH, MAX_WIDTH);
+            var delta    = startX - e.clientX;
+            var rawWidth = startWidth + delta;
+            var newWidth = clamp(rawWidth, MIN_WIDTH, MAX_WIDTH);
+
+            /*
+             * Re-anchor the drag origin whenever the sidebar is clamped at a
+             * limit.  Without this, the cursor accumulates invisible "debt"
+             * past the boundary so that subsequent movement in the opposite
+             * direction produces no visual change until the debt is paid off,
+             * creating a rubber-band / stuttering effect.
+             */
+            if (rawWidth !== newWidth) {
+                startX     = e.clientX;
+                startWidth = newWidth;
+            }
 
             applyWidth(newWidth);
-
             handle.setAttribute('aria-valuenow', String(Math.round(newWidth)));
-        }
+        });
 
-        /* ---- End ------------------------------------------------------ */
-        function onDragEnd() {
-            if (!dragging) {
+        /* ---- Pointer end / cancel ------------------------------------- */
+        function onPointerEnd(e) {
+            if (!dragging || e.pointerId !== activePtrId) {
                 return;
             }
 
-            dragging = false;
+            dragging    = false;
+            activePtrId = null;
+
+            if (handle.hasPointerCapture(e.pointerId)) {
+                handle.releasePointerCapture(e.pointerId);
+            }
 
             document.body.classList.remove(DRAG_CLASS);
 
-            document.removeEventListener('mousemove', onDragMove);
-            document.removeEventListener('touchmove', onDragMove);
-            document.removeEventListener('mouseup',   onDragEnd);
-            document.removeEventListener('touchend',  onDragEnd);
-
-            /* Persist the width that was actually applied */
+            /* Persist the width that was actually applied. */
             var finalWidth = parseInt(
                 document.body.style.getPropertyValue(CSS_PROP),
                 10
@@ -207,6 +226,9 @@
                 saveWidth(finalWidth);
             }
         }
+
+        handle.addEventListener('pointerup',     onPointerEnd);
+        handle.addEventListener('pointercancel', onPointerEnd);
 
         /* ---- Keyboard (arrow keys) ------------------------------------ */
         handle.addEventListener('keydown', function (e) {

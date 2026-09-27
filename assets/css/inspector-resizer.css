@@ -51,6 +51,10 @@ body.scmb-wide-inspector .block-editor-block-inspector {
     outline: none; /* custom focus style below */
     border: none;
     padding: 0;
+    /* Prevent the browser consuming the pointer stream for scroll/pan on
+     * touch devices, which would cancel pointer capture and cause the drag
+     * to "stick" after the touch is released. */
+    touch-action: none;
 }
 
 .scmb-drag-resize:hover,
