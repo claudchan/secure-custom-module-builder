@@ -253,9 +253,168 @@ class SCMB_Blocks {
                     ],
                 ],
             ];
+        } else {
+            $block_args['example'] = [
+                'attributes' => $this->build_module_preview_example( $fields ),
+            ];
         }
 
         acf_register_block_type( $block_args );
+    }
+
+    /**
+     * Build example attributes for the block inserter preview.
+     *
+     * @param array $fields Module field definitions.
+     * @return array
+     */
+    private function build_module_preview_example( $fields ) {
+        $data = [];
+
+        foreach ( $fields as $field ) {
+            if ( empty( $field['field_name'] ) || empty( $field['field_type'] ) ) {
+                continue;
+            }
+
+            $field_name = $this->normalize_template_field_name( $field['field_name'] );
+
+            if ( empty( $field_name ) ) {
+                continue;
+            }
+
+            $choices = 'select' === $field['field_type']
+                ? $this->parse_select_choices( $field['field_choices'] ?? '' )
+                : [];
+            $sub_fields = 'repeater' === $field['field_type']
+                ? $this->parse_repeater_sub_fields( $field['field_sub_fields'] ?? '', 'preview' )
+                : [];
+
+            $data[ $field_name ] = $this->build_preview_field_value(
+                $field['field_type'],
+                $field['field_default'] ?? '',
+                $choices,
+                $sub_fields
+            );
+
+            if ( 'url' === $field['field_type'] ) {
+                $data[ $field_name . '__target' ] = false;
+            }
+        }
+
+        return [
+            'mode' => 'preview',
+            'data' => $data,
+        ];
+    }
+
+    /**
+     * Build a sample value for a module field.
+     *
+     * @param string $field_type Field type.
+     * @param mixed  $default_value Configured default value.
+     * @param array  $choices Select choices.
+     * @param array  $sub_fields Repeater sub-fields.
+     * @return mixed
+     */
+    private function build_preview_field_value( $field_type, $default_value = '', $choices = [], $sub_fields = [] ) {
+        if ( '' !== (string) $default_value ) {
+            if ( 'image' === $field_type ) {
+                return absint( $default_value );
+            }
+
+            if ( 'true_false' === $field_type ) {
+                return $this->parse_boolean_option( $default_value );
+            }
+
+            return $default_value;
+        }
+
+        switch ( $field_type ) {
+            case 'image':
+                return $this->get_preview_placeholder_image_id();
+
+            case 'select':
+                return ! empty( $choices ) ? (string) key( $choices ) : '';
+
+            case 'true_false':
+                return true;
+
+            case 'repeater':
+                return [
+                    $this->build_preview_repeater_row( $sub_fields ),
+                    $this->build_preview_repeater_row( $sub_fields ),
+                ];
+
+            case 'url':
+                return 'https://example.com';
+
+            case 'checkbox':
+                return ! empty( $choices ) ? [ (string) key( $choices ) ] : [];
+
+            case 'text':
+            case 'textarea':
+            case 'wysiwyg':
+            default:
+                return 'Sample text';
+        }
+    }
+
+    /**
+     * Build one sample row for a repeater, recursively handling nested repeaters.
+     *
+     * @param array $sub_fields Parsed repeater sub-fields.
+     * @return array
+     */
+    private function build_preview_repeater_row( $sub_fields ) {
+        $row = [];
+
+        foreach ( $sub_fields as $sub_field ) {
+            if ( empty( $sub_field['name'] ) || empty( $sub_field['type'] ) ) {
+                continue;
+            }
+
+            $field_name = $this->normalize_template_field_name( $sub_field['name'] );
+
+            if ( empty( $field_name ) ) {
+                continue;
+            }
+
+            $row[ $field_name ] = $this->build_preview_field_value(
+                $sub_field['type'],
+                $sub_field['default_value'] ?? '',
+                $sub_field['choices'] ?? [],
+                $sub_field['sub_fields'] ?? []
+            );
+
+            if ( 'url' === $sub_field['type'] ) {
+                $row[ $field_name . '__target' ] = false;
+            }
+        }
+
+        return $row;
+    }
+
+    /**
+     * Get an image attachment ID to use in generated preview data.
+     *
+     * @return int
+     */
+    private function get_preview_placeholder_image_id() {
+        static $image_id = null;
+
+        if ( null === $image_id ) {
+            $images = get_posts([
+                'post_type' => 'attachment',
+                'post_status' => 'inherit',
+                'post_mime_type' => 'image',
+                'posts_per_page' => 1,
+                'fields' => 'ids',
+            ]);
+
+            $image_id = ! empty( $images ) ? absint( $images[0] ) : 0;
+        }
+
+        return $image_id;
     }
 
     /**

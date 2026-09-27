@@ -5,7 +5,7 @@ Tags: blocks, acf, gutenberg, module builder, custom blocks
 Requires at least: 6.0  
 Tested up to: 7.1.2  
 Requires PHP: 8.5  
-Stable tag: 1.0.28  
+Stable tag: 1.0.29  
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,9 @@ Once activated, navigate to **Module Builder** in the WordPress admin sidebar.
 * **View sitewide usage:** Go to **Module Builder > Module Insights** to see where each module is used across the site.
 
 ## Changelog
+
+### 1.0.29
+* Added live-rendered block inserter previews using sample field values when a module has no preview thumbnail.
 
 ### 1.0.28
 * Added a resizable Block Inspector sidebar to the Gutenberg block editor.
