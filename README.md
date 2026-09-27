@@ -3,9 +3,9 @@
 Contributors: claudchan  
 Tags: blocks, acf, gutenberg, module builder, custom blocks  
 Requires at least: 6.0  
-Tested up to: 7.1  
+Tested up to: 7.1.2  
 Requires PHP: 8.5  
-Stable tag: 1.0.27  
+Stable tag: 1.0.28  
 License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,13 @@ Once activated, navigate to **Module Builder** in the WordPress admin sidebar.
 * **View sitewide usage:** Go to **Module Builder > Module Insights** to see where each module is used across the site.
 
 ## Changelog
+
+### 1.0.28
+* Added a resizable Block Inspector sidebar to the Gutenberg block editor.
+Content editors can drag the left edge of the sidebar to any width between 220 px and 1200 px.
+The chosen width persists across sessions via `localStorage` (`scmbInspectorWidth`) and is restored automatically on the next page load.
+Keyboard users can resize with `ArrowLeft` / `ArrowRight` (5 px) or `Shift+Arrow` (20 px).
+The handle is hidden and the sidebar is fixed at 340 px on viewports narrower than 960 px.
 
 ### 1.0.27
 * Fixed README.md: corrected Git clone URL placeholder, removed nonexistent shortcode from Usage section, replaced placeholder Contributing section, and filled in missing changelog entries for versions 1.0.8, 1.0.10, 1.0.15, and 1.0.16.

@@ -1,0 +1,120 @@
+/* SCMB Block Inspector resizer styles */
+
+/* -----------------------------------------------------------------------
+ * Custom property default — overridden at runtime by the JS resizer.
+ * Applied to body so the JS can write one property and the sidebar picks
+ * it up regardless of the current WP admin theme.
+ * --------------------------------------------------------------------- */
+body {
+    --scmb-inspector-width: 460px;
+}
+
+/* -----------------------------------------------------------------------
+ * Widen the outer sidebar skeleton column when our class is present.
+ * The class is added by JS once a saved (or default) width is known.
+ * --------------------------------------------------------------------- */
+body.scmb-wide-inspector .interface-interface-skeleton__sidebar {
+    width: var(--scmb-inspector-width) !important;
+    max-width: var(--scmb-inspector-width) !important;
+    min-width: 0 !important;
+    position: relative; /* anchor for the drag handle */
+}
+
+/* -----------------------------------------------------------------------
+ * Inner panel containers must stretch to fill the widened outer column.
+ * --------------------------------------------------------------------- */
+body.scmb-wide-inspector .interface-complementary-area,
+body.scmb-wide-inspector .interface-complementary-area__fill,
+body.scmb-wide-inspector .editor-sidebar,
+body.scmb-wide-inspector .block-editor-block-inspector {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* -----------------------------------------------------------------------
+ * Drag handle — rendered on the LEFT edge of the sidebar.
+ * --------------------------------------------------------------------- */
+.scmb-drag-resize {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 8px;
+    cursor: col-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    transition: background 0.15s ease;
+    outline: none; /* custom focus style below */
+    border: none;
+    padding: 0;
+}
+
+.scmb-drag-resize:hover,
+.scmb-drag-resize:focus-visible {
+    background: rgba(34, 113, 177, 0.08);
+}
+
+/* Grab-indicator bar (the thin vertical stripe inside the handle) */
+.scmb-drag-resize::after {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 40px;
+    border-radius: 2px;
+    background: #c3c4c7;
+    transition: background 0.15s ease, height 0.15s ease;
+    pointer-events: none;
+}
+
+.scmb-drag-resize:hover::after,
+.scmb-drag-resize:focus-visible::after {
+    height: 60px;
+    background: var(--scmb-accent, #2271b1);
+}
+
+/* Focus ring for keyboard users */
+.scmb-drag-resize:focus-visible {
+    box-shadow: inset 2px 0 0 0 var(--scmb-accent, #2271b1);
+}
+
+/* -----------------------------------------------------------------------
+ * Active-drag state — applied to <body> while the user is dragging.
+ * Suppresses text selection and transitions for a snappy feel.
+ * --------------------------------------------------------------------- */
+body.scmb-inspector-resizing {
+    user-select: none;
+    cursor: col-resize;
+}
+
+body.scmb-inspector-resizing .scmb-drag-resize {
+    background: rgba(34, 113, 177, 0.12);
+}
+
+body.scmb-inspector-resizing .scmb-drag-resize::after {
+    height: 60px;
+    background: var(--scmb-accent, #2271b1);
+}
+
+/* Disable sidebar width transition while dragging so it tracks the cursor */
+body.scmb-inspector-resizing .interface-interface-skeleton__sidebar {
+    transition: none !important;
+}
+
+/* -----------------------------------------------------------------------
+ * Small-screen safety — fix width so the handle does not allow further
+ * narrowing on narrow viewports.
+ * --------------------------------------------------------------------- */
+@media (max-width: 960px) {
+    body.scmb-wide-inspector .interface-interface-skeleton__sidebar {
+        width: 340px !important;
+        max-width: 340px !important;
+    }
+
+    .scmb-drag-resize {
+        display: none;
+    }
+}

@@ -28,7 +28,8 @@ class SCMB_Blocks {
     }
 
     /**
-     * Enqueue editor-only styles for SCMB block previews.
+     * Enqueue editor-only styles for SCMB block previews and the
+     * Block Inspector drag-resize feature.
      *
      * @return void
      */
@@ -72,7 +73,41 @@ class SCMB_Blocks {
             );
         }
 
+        $this->enqueue_inspector_resizer_assets();
         $this->enqueue_url_suggest_assets();
+    }
+
+    /**
+     * Enqueue the Block Inspector drag-resize stylesheet and script.
+     *
+     * These assets target the outer wp-admin document (not the canvas iframe),
+     * so they must be loaded via enqueue_block_editor_assets rather than
+     * add_editor_style() / block.json editorStyle.
+     *
+     * @return void
+     */
+    private function enqueue_inspector_resizer_assets() {
+        $resizer_css_path = SCMB_PLUGIN_DIR . 'assets/css/inspector-resizer.css';
+        $resizer_js_path  = SCMB_PLUGIN_DIR . 'assets/js/inspector-resizer.js';
+
+        if ( file_exists( $resizer_css_path ) ) {
+            wp_enqueue_style(
+                'scmb-inspector-resizer',
+                SCMB_PLUGIN_URL . 'assets/css/inspector-resizer.css',
+                [ 'scmb-block-editor' ],
+                filemtime( $resizer_css_path )
+            );
+        }
+
+        if ( file_exists( $resizer_js_path ) ) {
+            wp_enqueue_script(
+                'scmb-inspector-resizer',
+                SCMB_PLUGIN_URL . 'assets/js/inspector-resizer.js',
+                [],
+                filemtime( $resizer_js_path ),
+                true
+            );
+        }
     }
 
     /**
